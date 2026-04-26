@@ -11,7 +11,7 @@ using FuzzyBrain;
 public class OnSurface : Condition<Collider2D>, IGizmoDrawable
 {
     [Tooltip("Physics layer index of the actor itself. The check will exclude this layer.")]
-    public int actorLayer;
+    public LayerMask actorLayer;
 
     protected override bool Verify(Collider2D col)
     {

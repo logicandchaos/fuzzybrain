@@ -19,6 +19,28 @@ namespace FuzzyBrain.Editor
         {
             DrawDefaultInspector();
 
+            // ── Manager check ─────────────────────────────────────────────────────
+            bool hasManager = FindFirstObjectByType<FuzzyBrainManager>() != null;
+            if (!hasManager)
+            {
+                EditorGUILayout.Space(6f);
+                EditorGUILayout.HelpBox(
+                    "No FuzzyBrainManager found in this scene.\n" +
+                    "One will be created automatically at runtime, but it is recommended to add one manually so you can configure bucket count and tick interval.",
+                    MessageType.Warning);
+
+                if (GUILayout.Button("Add FuzzyBrainManager to Scene", GUILayout.Height(26f)))
+                {
+                    var go = new GameObject("FuzzyBrainManager");
+                    go.AddComponent<FuzzyBrainManager>();
+                    Undo.RegisterCreatedObjectUndo(go, "Add FuzzyBrainManager");
+                    Selection.activeGameObject = go;
+                }
+
+                EditorGUILayout.Space(2f);
+            }
+
+            // ── Editor window button ──────────────────────────────────────────────
             EditorGUILayout.Space(4f);
             if (GUILayout.Button("Open FuzzyBrain Editor", GUILayout.Height(28f)))
                 FuzzyBrainWindow.Open();
@@ -31,14 +53,12 @@ namespace FuzzyBrain.Editor
             SerializedProperty activitiesProp = serializedObject.FindProperty("activities");
             if (activitiesProp == null) return;
 
-            ScriptableActivityList list = activitiesProp.objectReferenceValue as ScriptableActivityList;
+            ScriptableActList list = activitiesProp.objectReferenceValue as ScriptableActList;
             if (list == null) return;
 
             // Build a temporary component cache — _componentCache is private, so we rebuild here.
             // This runs only when the actor is selected in the editor, not on the hot path.
-            var tempComponentCache = new Dictionary<Type, Component>();
-            foreach (Component c in actor.GetComponents<Component>())
-                tempComponentCache[c.GetType()] = c;
+            var tempComponentCache = ActContext.BuildComponentCache(actor);
 
             var tempConditionCache = new Dictionary<Condition, bool>();
             ActContext ctx = new ActContext(actor, tempComponentCache, tempConditionCache);

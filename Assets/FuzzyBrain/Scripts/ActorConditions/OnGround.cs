@@ -10,13 +10,12 @@ using FuzzyBrain;
 public class OnGround : Condition<Collider2D>, IGizmoDrawable
 {
     [Tooltip("Physics layer index to treat as ground.")]
-    public int groundLayer;
+    public LayerMask groundLayer;
 
     protected override bool Verify(Collider2D col)
     {
-        int mask = 1 << groundLayer;
         float rayLength = col.bounds.extents.y + 0.1f;
-        bool grounded = Physics2D.Raycast(col.transform.position, Vector2.down, rayLength, mask);
+        bool grounded = Physics2D.Raycast(col.transform.position, Vector2.down, rayLength, groundLayer);
         return inverted ? !grounded : grounded;
     }
 
@@ -26,9 +25,8 @@ public class OnGround : Condition<Collider2D>, IGizmoDrawable
         Collider2D col = ctx.Get<Collider2D>();
         if (col == null) return;
 
-        int mask = 1 << groundLayer;
         float rayLength = col.bounds.extents.y + 0.1f;
-        bool hit = Physics2D.Raycast(col.transform.position, Vector2.down, rayLength, mask);
+        bool hit = Physics2D.Raycast(col.transform.position, Vector2.down, rayLength, groundLayer);
 
         Gizmos.color = Application.isPlaying ? (hit ? Color.green : Color.red) : Color.grey;
         Vector3 start = col.transform.position;

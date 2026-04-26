@@ -21,6 +21,9 @@ namespace FuzzyBrain.Editor
     {
         private static readonly Regex ValidIdentifier = new Regex(@"^[A-Za-z][A-Za-z0-9_]*$");
 
+        private const string LiteralIntControlName   = "FBLiteralInt";
+        private const string LiteralFloatControlName = "FBLiteralFloat";
+
         // ── Tab 1 state ───────────────────────────────────────────────────────────
 
         private string _conditionName = "MyCondition";
@@ -32,11 +35,14 @@ namespace FuzzyBrain.Editor
 
         // ── Tab 2 state ───────────────────────────────────────────────────────────
 
-        private int    _conditionTypeIndex;
-        private string _assetName   = "NewCondition";
-        private string _assetFolder;
-        private List<Type>   _conditionTypes = new List<Type>();
-        private List<string> _conditionNames = new List<string>();
+        private int                  _conditionTypeIndex;
+        private string               _assetName   = "NewCondition";
+        private string               _assetFolder;
+        private List<Type>           _conditionTypes = new List<Type>();
+        private List<string>         _conditionNames = new List<string>();
+        private ScriptableObject     _previewInstance;
+        private UnityEditor.Editor   _previewEditor;
+        private Vector2              _previewScroll;
 
         // ── Tab 3 state ───────────────────────────────────────────────────────────
 
@@ -46,9 +52,15 @@ namespace FuzzyBrain.Editor
         private int              _quickLeftIndex;
         private int              _quickOpIndex;
         private bool             _quickRHSIsField;
+        private int              _quickRHSComponentIndex;
+        private List<MemberInfo> _quickRHSMembers     = new List<MemberInfo>();
+        private List<string>     _quickRHSMemberNames = new List<string>();
         private int              _quickRightIndex;
-        private string           _quickLiteralValue = "0";
-        private string           _quickClassName    = "MyComparison";
+        private bool             _quickLiteralBool   = false;
+        private int              _quickLiteralInt    = 0;
+        private float            _quickLiteralFloat  = 0f;
+        private string           _quickLiteralString = string.Empty;
+        private string           _quickClassName     = "MyComparison";
         private string           _quickScriptFolder;
 
         private static readonly string[] AllOperators      = { "==", "!=", ">", "<", ">=", "<=" };
@@ -90,9 +102,19 @@ namespace FuzzyBrain.Editor
             PopulateComponentTypes();
             PopulateConditionTypes();
             RefreshMenuPath();
+            RefreshPreviewInstance();
 
             if (_componentTypes.Count > 0)
+            {
                 RefreshQuickMemberList(_componentTypes[_quickComponentIndex]);
+                RefreshQuickRHSMemberList(_componentTypes[_quickRHSComponentIndex]);
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_previewEditor   != null) DestroyImmediate(_previewEditor);
+            if (_previewInstance != null) DestroyImmediate(_previewInstance);
         }
 
         private void PopulateComponentTypes()
@@ -155,6 +177,18 @@ namespace FuzzyBrain.Editor
 
         private void OnGUI()
         {
+            // After a domain reload the window survives but _previewEditor may wrap a
+            // ScriptableObject whose script Unity now considers missing. Check by probing
+            // the editor type — a GenericInspector indicates a missing/unresolved script.
+            if (_previewEditor != null &&
+                _previewEditor.GetType().Name == "GenericInspector")
+            {
+                DestroyImmediate(_previewEditor);
+                _previewEditor   = null;
+                _previewInstance = null;
+                RefreshPreviewInstance();
+            }
+
             _activeTab = GUILayout.Toolbar(_activeTab,
                 new[] { "Generate Script", "Create Asset", "Quick Condition" });
 
@@ -286,8 +320,15 @@ public class {_conditionName} : Condition<{typeName}>
                 return;
             }
 
+            EditorGUI.BeginChangeCheck();
             _conditionTypeIndex = EditorGUILayout.Popup("Condition Type",
                 _conditionTypeIndex, _conditionNames.ToArray());
+            if (EditorGUI.EndChangeCheck())
+            {
+                _assetName = _conditionTypes[_conditionTypeIndex].Name;
+                RefreshPreviewInstance();
+            }
+
             _assetName = EditorGUILayout.TextField("Asset Name", _assetName);
 
             EditorGUILayout.Space(4f);
@@ -305,30 +346,94 @@ public class {_conditionName} : Condition<{typeName}>
                 }
             }
 
+            // ── Properties preview ────────────────────────────────────────────────
+            // Guard against Unity fake-null: after CreateAsset transfers ownership,
+            // _previewInstance becomes a destroyed object that passes C# null checks.
+            bool previewValid = !ReferenceEquals(_previewEditor, null)
+                             && !ReferenceEquals(_previewInstance, null)
+                             && _previewEditor != null
+                             && _previewInstance != null;
+
+            if (previewValid)
+            {
+                EditorGUILayout.Space(8f);
+                EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
+
+                _previewScroll = EditorGUILayout.BeginScrollView(
+                    _previewScroll, GUILayout.MaxHeight(200f));
+
+                try
+                {
+                    _previewEditor.OnInspectorGUI();
+                }
+                catch (Exception)
+                {
+                    // Absorb transient exceptions (e.g. SerializedObjectNotCreatableException
+                    // during domain reload) so the scroll view End is always reached.
+                    _previewEditor   = null;
+                    _previewInstance = null;
+                }
+
+                EditorGUILayout.EndScrollView();
+            }
+
             EditorGUILayout.Space(8f);
 
             if (GUILayout.Button("Create Asset", GUILayout.Height(28f)))
                 CreateConditionAsset();
         }
 
+        private void RefreshPreviewInstance()
+        {
+            if (_previewEditor != null)
+            {
+                DestroyImmediate(_previewEditor);
+                _previewEditor = null;
+            }
+            if (_previewInstance != null)
+            {
+                DestroyImmediate(_previewInstance);
+                _previewInstance = null;
+            }
+
+            if (_conditionTypes.Count == 0) return;
+
+            // Clamp index in case the list changed since the last draw (e.g. after recompile).
+            _conditionTypeIndex = Mathf.Clamp(_conditionTypeIndex, 0, _conditionTypes.Count - 1);
+
+            _previewInstance = CreateInstance(_conditionTypes[_conditionTypeIndex]);
+            if (_previewInstance == null) return;
+
+            _previewInstance.name = _assetName;
+            _previewEditor        = UnityEditor.Editor.CreateEditor(_previewInstance);
+        }
+
         private void CreateConditionAsset()
         {
-            Type conditionType = _conditionTypes[_conditionTypeIndex];
+            if (_previewInstance == null) return;
 
             if (!Directory.Exists(_assetFolder))
                 Directory.CreateDirectory(_assetFolder);
 
+            _previewInstance.name = _assetName;
+
             string assetPath = AssetDatabase.GenerateUniqueAssetPath(
                 Path.Combine(_assetFolder, _assetName + ".asset"));
 
-            ScriptableObject instance = CreateInstance(conditionType);
-            instance.name = _assetName;
-
-            AssetDatabase.CreateAsset(instance, assetPath);
+            AssetDatabase.CreateAsset(_previewInstance, assetPath);
             AssetDatabase.SaveAssets();
-            EditorGUIUtility.PingObject(instance);
+            EditorGUIUtility.PingObject(_previewInstance);
 
             Debug.Log($"[FuzzyBrain] Created condition asset: {assetPath}");
+
+            // Null both references explicitly before refreshing — CreateAsset transfers
+            // ownership of _previewInstance to the AssetDatabase, making the in-memory
+            // object invalid for further editor use. Clearing here prevents the stale
+            // editor from calling OnInspectorGUI on a destroyed serialized object.
+            _previewInstance = null;
+            _previewEditor   = null;
+            PopulateConditionTypes();
+            RefreshPreviewInstance();
         }
 
         // ── Tab 3: Quick Condition ────────────────────────────────────────────────
@@ -362,38 +467,110 @@ public class {_conditionName} : Condition<{typeName}>
             _quickOpIndex    = 0;
         }
 
+        private void RefreshQuickRHSMemberList(Type componentType)
+        {
+            _quickRHSMembers.Clear();
+            _quickRHSMemberNames.Clear();
+
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.Instance;
+
+            foreach (FieldInfo fi in componentType.GetFields(flags))
+            {
+                if (fi.Name.StartsWith("<") || fi.Name.StartsWith("m_")) continue;
+                if (!SupportedMemberTypes.Contains(fi.FieldType)) continue;
+                _quickRHSMembers.Add(fi);
+                _quickRHSMemberNames.Add(fi.Name);
+            }
+
+            foreach (PropertyInfo pi in componentType.GetProperties(flags))
+            {
+                if (!pi.CanRead) continue;
+                if (pi.Name.StartsWith("<") || pi.Name.StartsWith("m_")) continue;
+                if (!SupportedMemberTypes.Contains(pi.PropertyType)) continue;
+                _quickRHSMembers.Add(pi);
+                _quickRHSMemberNames.Add(pi.Name);
+            }
+
+            _quickRightIndex = 0;
+        }
+
         private static Type GetMemberType(MemberInfo m) =>
             m is FieldInfo fi ? fi.FieldType : ((PropertyInfo)m).PropertyType;
 
         private static string[] GetOperatorsForMember(MemberInfo m) =>
             GetMemberType(m) == typeof(bool) ? BoolOnlyOperators : AllOperators;
 
-        private string BuildLiteralSuffix(Type t, string value)
+        /// <summary>
+        /// Consumes any keydown event whose character is not valid for a numeric field,
+        /// preventing it from reaching the text buffer of the focused control.
+        /// Must be called before drawing the control, while the correct control is focused.
+        /// </summary>
+        private static void FilterNumericInput(bool allowDecimal)
+        {
+            Event e = Event.current;
+            if (e.type != EventType.KeyDown) return;
+
+            char c = e.character;
+            if (c == 0)    return;  // non-printable / special key (arrows, F-keys, etc.)
+            if (c == '\b') return;  // backspace
+            if (c == '\t' || c == '\n' || c == '\r') return;  // tab / confirm
+            if (char.IsDigit(c)) return;
+            if (c == '-')  return;
+            if (allowDecimal && c == '.') return;
+
+            e.Use();
+        }
+
+        private string DrawLiteralField(Type t)
         {
             if (t == typeof(bool))
             {
-                try   { return bool.Parse(value).ToString().ToLower(); }
-                catch { return "false"; }
+                _quickLiteralBool = EditorGUILayout.Toggle("Value", _quickLiteralBool);
+                return _quickLiteralBool ? "true" : "false";
             }
-            if (t == typeof(float) || t == typeof(double)) return value + "f";
-            if (t == typeof(string)) return $"\"{value}\"";
-            return value; // int
+            if (t == typeof(int))
+            {
+                if (GUI.GetNameOfFocusedControl() == LiteralIntControlName)
+                    FilterNumericInput(false);
+                GUI.SetNextControlName(LiteralIntControlName);
+                _quickLiteralInt = EditorGUILayout.IntField("Value", _quickLiteralInt);
+                return _quickLiteralInt.ToString();
+            }
+            if (t == typeof(float) || t == typeof(double))
+            {
+                if (GUI.GetNameOfFocusedControl() == LiteralFloatControlName)
+                    FilterNumericInput(true);
+                GUI.SetNextControlName(LiteralFloatControlName);
+                _quickLiteralFloat = EditorGUILayout.FloatField("Value", _quickLiteralFloat);
+                return $"{_quickLiteralFloat}f";
+            }
+            // string
+            _quickLiteralString = EditorGUILayout.TextField("Value", _quickLiteralString);
+            return $"\"{_quickLiteralString}\"";
+        }
+
+        private string GetCurrentLiteral(Type t)
+        {
+            if (t == typeof(bool))                        return _quickLiteralBool   ? "true" : "false";
+            if (t == typeof(int))                         return _quickLiteralInt.ToString();
+            if (t == typeof(float) || t == typeof(double)) return $"{_quickLiteralFloat}f";
+            return $"\"{_quickLiteralString}\"";
         }
 
         private string BuildPreview()
         {
             if (_quickMembers.Count == 0) return "—";
 
-            int        safeLeft  = Mathf.Clamp(_quickLeftIndex,  0, _quickMembers.Count - 1);
-            int        safeRight = Mathf.Clamp(_quickRightIndex, 0, _quickMembers.Count - 1);
+            int        safeLeft   = Mathf.Clamp(_quickLeftIndex,  0, _quickMembers.Count - 1);
+            int        safeRight  = Mathf.Clamp(_quickRightIndex, 0, _quickMembers.Count - 1);
             MemberInfo leftMember = _quickMembers[safeLeft];
             string[]   ops        = GetOperatorsForMember(leftMember);
             string     op         = ops[Mathf.Clamp(_quickOpIndex, 0, ops.Length - 1)];
 
             string lhs = $"component.{_quickMemberNames[safeLeft]}";
             string rhs = _quickRHSIsField
-                ? $"component.{_quickMemberNames[safeRight]}"
-                : BuildLiteralSuffix(GetMemberType(leftMember), _quickLiteralValue);
+                ? $"rhsComponent.{_quickRHSMemberNames[Mathf.Clamp(_quickRightIndex, 0, _quickRHSMembers.Count - 1)]}"
+                : GetCurrentLiteral(GetMemberType(leftMember));
 
             return $"{lhs} {op} {rhs}";
         }
@@ -456,9 +633,42 @@ public class {_conditionName} : Condition<{typeName}>
             // Right-hand side
             _quickRHSIsField = EditorGUILayout.Toggle("Use Field (RHS)", _quickRHSIsField);
             if (_quickRHSIsField)
-                _quickRightIndex = EditorGUILayout.Popup("Right Field", _quickRightIndex, _quickMemberNames.ToArray());
+            {
+                // RHS component picker
+                EditorGUI.BeginChangeCheck();
+                _quickRHSComponentIndex = EditorGUILayout.Popup(
+                    "RHS Component", _quickRHSComponentIndex, _componentNames.ToArray());
+                if (EditorGUI.EndChangeCheck())
+                    RefreshQuickRHSMemberList(_componentTypes[_quickRHSComponentIndex]);
+
+                // Only show fields whose type matches the LHS to prevent invalid comparisons
+                Type lhsType = GetMemberType(_quickMembers[_quickLeftIndex]);
+                var rhsFiltered = _quickRHSMembers
+                    .Select((m, i) => (member: m, name: _quickRHSMemberNames[i], originalIndex: i))
+                    .Where(x => GetMemberType(x.member) == lhsType)
+                    .ToList();
+
+                if (rhsFiltered.Count == 0)
+                {
+                    EditorGUILayout.HelpBox(
+                        $"No fields of type '{lhsType.Name}' found on {_componentTypes[_quickRHSComponentIndex].Name}.",
+                        MessageType.Info);
+                }
+                else
+                {
+                    string[] rhsNames    = rhsFiltered.Select(x => x.name).ToArray();
+                    int      filteredIdx = rhsFiltered.FindIndex(x => x.originalIndex == _quickRightIndex);
+                    if (filteredIdx < 0) filteredIdx = 0;
+
+                    filteredIdx      = EditorGUILayout.Popup("Right Field", filteredIdx, rhsNames);
+                    _quickRightIndex = rhsFiltered[filteredIdx].originalIndex;
+                }
+            }
             else
-                _quickLiteralValue = EditorGUILayout.TextField("Value", _quickLiteralValue);
+            {
+                Type lhsType = GetMemberType(_quickMembers[_quickLeftIndex]);
+                DrawLiteralField(lhsType);
+            }
 
             // Separator
             EditorGUILayout.Space(4f);
@@ -500,35 +710,63 @@ public class {_conditionName} : Condition<{typeName}>
 
         private void GenerateQuickScript()
         {
-            Type   componentType = _componentTypes[_quickComponentIndex];
-            string typeName      = componentType.Name;
+            Type   lhsType  = _componentTypes[_quickComponentIndex];
+            string lhsName  = lhsType.Name;
 
-            int        safeLeft  = Mathf.Clamp(_quickLeftIndex,  0, _quickMembers.Count - 1);
-            int        safeRight = Mathf.Clamp(_quickRightIndex, 0, _quickMembers.Count - 1);
+            int        safeLeft  = Mathf.Clamp(_quickLeftIndex, 0, _quickMembers.Count - 1);
             string     leftName  = _quickMemberNames[safeLeft];
             MemberInfo leftMember = _quickMembers[safeLeft];
             string[]   ops        = GetOperatorsForMember(leftMember);
             string     op         = ops[Mathf.Clamp(_quickOpIndex, 0, ops.Length - 1)];
 
-            string rhsExpr = _quickRHSIsField
-                ? $"component.{_quickMemberNames[safeRight]}"
-                : BuildLiteralSuffix(GetMemberType(leftMember), _quickLiteralValue);
+            string rhsExpr;
+            string rhsFetch   = string.Empty;
+            string rhsNsUsing = string.Empty;
 
-            string ns      = componentType.Namespace;
-            string nsUsing = (!string.IsNullOrEmpty(ns) && ns != "UnityEngine")
-                ? $"using {ns};\n"
+            if (_quickRHSIsField && _quickRHSMembers.Count > 0)
+            {
+                Type   rhsType     = _componentTypes[_quickRHSComponentIndex];
+                string rhsTypeName = rhsType.Name;
+                int    safeRight   = Mathf.Clamp(_quickRightIndex, 0, _quickRHSMembers.Count - 1);
+                string rightName   = _quickRHSMemberNames[safeRight];
+
+                if (rhsType == lhsType)
+                {
+                    // Same component type — reuse the parameter directly, no extra fetch needed
+                    rhsExpr  = $"component.{rightName}";
+                }
+                else
+                {
+                    rhsExpr  = $"rhs.{rightName}";
+                    rhsFetch = $"        var rhs = component.gameObject.GetComponent<{rhsTypeName}>();\n" +
+                               $"        if (rhs == null) return false;\n";
+                }
+
+                string rhsNs       = rhsType.Namespace;
+                string lhsNsInner  = lhsType.Namespace;
+                if (!string.IsNullOrEmpty(rhsNs) && rhsNs != lhsNsInner && rhsNs != "UnityEngine")
+                    rhsNsUsing = $"using {rhsNs};\n";
+            }
+            else
+            {
+                rhsExpr = GetCurrentLiteral(GetMemberType(leftMember));
+            }
+
+            string lhsNs      = lhsType.Namespace;
+            string lhsNsUsing = (!string.IsNullOrEmpty(lhsNs) && lhsNs != "UnityEngine")
+                ? $"using {lhsNs};\n"
                 : string.Empty;
 
             string template =
 $@"using UnityEngine;
 using FuzzyBrain;
-{nsUsing}
+{lhsNsUsing}{rhsNsUsing}
 [CreateAssetMenu(fileName = ""{_quickClassName}"", menuName = ""FuzzyBrain/Conditions/{_quickClassName}"")]
-public class {_quickClassName} : Condition<{typeName}>
+public class {_quickClassName} : Condition<{lhsName}>
 {{
-    protected override bool Verify({typeName} component)
+    protected override bool Verify({lhsName} component)
     {{
-        bool result = component.{leftName} {op} {rhsExpr};
+{rhsFetch}        bool result = component.{leftName} {op} {rhsExpr};
         return inverted ? !result : result;
     }}
 }}

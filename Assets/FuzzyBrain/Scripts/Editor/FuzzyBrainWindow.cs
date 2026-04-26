@@ -24,15 +24,15 @@ namespace FuzzyBrain.Editor
         /// <summary>True when the window is currently open.</summary>
         public static bool IsOpen => _instance != null;
 
-        /// <summary>Appends an act to the currently displayed activity list, if any.</summary>
+        /// <summary>Appends an act to the currently displayed act list, if any.</summary>
         public static void TryAddActToCurrentList(Act act)
         {
-            if (_instance == null || _instance._activityListSO == null) return;
-            _instance._activityListSO.Update();
-            SerializedProperty listProp = _instance._activityListSO.FindProperty("list");
+            if (_instance == null || _instance._actListSO == null) return;
+            _instance._actListSO.Update();
+            SerializedProperty listProp = _instance._actListSO.FindProperty("list");
             listProp.arraySize++;
             listProp.GetArrayElementAtIndex(listProp.arraySize - 1).objectReferenceValue = act;
-            _instance._activityListSO.ApplyModifiedProperties();
+            _instance._actListSO.ApplyModifiedProperties();
             _instance.RebuildTable();
         }
 
@@ -51,13 +51,15 @@ namespace FuzzyBrain.Editor
 
         private Actor              _actor;
         private SerializedObject   _actorSO;
-        private SerializedObject   _activityListSO;
-        private ScriptableActivityList _activityList;
+        private SerializedObject   _actListSO;
+        private SerializedObject   _actSO;
+        private ScriptableActList  _actList;
 
         private IMGUIContainer     _listContainer;
         private ReorderableList    _reorderableList;
         private VisualElement       _detailContent;
         private Label               _actorLabel;
+        private Label               _activeActLabel;
         private Button              _addActBtn;
         private int                 _selectedIndex = -1;
         private Act                 _lastHighlightedAct;
@@ -74,8 +76,10 @@ namespace FuzzyBrain.Editor
         private void OnEnable()
         {
             _instance = this;
-            Selection.selectionChanged += OnSelectionChanged;
-            EditorApplication.update  += OnEditorUpdate;
+            Selection.selectionChanged             += OnSelectionChanged;
+            EditorApplication.update               += OnEditorUpdate;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            Undo.undoRedoPerformed                 += OnUndoRedo;
             BuildUI();
             OnSelectionChanged();
         }
@@ -83,15 +87,55 @@ namespace FuzzyBrain.Editor
         private void OnDisable()
         {
             _instance = null;
-            Selection.selectionChanged -= OnSelectionChanged;
-            EditorApplication.update  -= OnEditorUpdate;
+            Selection.selectionChanged             -= OnSelectionChanged;
+            EditorApplication.update               -= OnEditorUpdate;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            Undo.undoRedoPerformed                 -= OnUndoRedo;
+        }
+
+        private void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.EnteredPlayMode ||
+                state == PlayModeStateChange.EnteredEditMode)
+            {
+                OnSelectionChanged();
+            }
+        }
+
+        private void OnUndoRedo()
+        {
+            // Serialized data was rolled back by undo/redo. Refresh the SerializedObjects
+            // so they reflect the restored state, then redraw both panels.
+            _actListSO?.Update();
+            _actSO?.Update();
+            RebuildTable();
+            if (_selectedIndex >= 0)
+                ShowActDetail(_selectedIndex);
+            else
+                ShowEmptyDetail();
         }
 
         private void OnEditorUpdate()
         {
-            if (!Application.isPlaying || _actor == null) return;
+            if (!Application.isPlaying || _actor == null)
+            {
+                if (_activeActLabel != null)
+                    _activeActLabel.style.display = DisplayStyle.None;
+                return;
+            }
+
             if (_actor.LastFiredAct == _lastHighlightedAct) return;
+
             _lastHighlightedAct = _actor.LastFiredAct;
+
+            if (_activeActLabel != null)
+            {
+                _activeActLabel.text          = _lastHighlightedAct != null
+                    ? $"▶  {_lastHighlightedAct.name}"
+                    : "▶  None";
+                _activeActLabel.style.display = DisplayStyle.Flex;
+            }
+
             RefreshRowHighlight();
             Repaint();
         }
@@ -107,16 +151,16 @@ namespace FuzzyBrain.Editor
             if (selected == _actor) return;
             _actor = selected;
             _actorSO = _actor != null ? new SerializedObject(_actor) : null;
-            LoadActivityList();
+            LoadActList();
             RefreshToolbar();
             RebuildTable();
             ShowEmptyDetail();
         }
 
-        private void LoadActivityList()
+        private void LoadActList()
         {
-            _activityList    = null;
-            _activityListSO  = null;
+            _actList    = null;
+            _actListSO  = null;
             _selectedIndex   = -1;
 
             if (_actorSO == null) return;
@@ -124,10 +168,10 @@ namespace FuzzyBrain.Editor
             SerializedProperty prop = _actorSO.FindProperty("activities");
             if (prop == null) return;
 
-            _activityList = prop.objectReferenceValue as ScriptableActivityList;
-            if (_activityList != null)
+            _actList = prop.objectReferenceValue as ScriptableActList;
+            if (_actList != null)
             {
-                _activityListSO = new SerializedObject(_activityList);
+                _actListSO = new SerializedObject(_actList);
                 BuildReorderableList();
             }
         }
@@ -161,11 +205,11 @@ namespace FuzzyBrain.Editor
             });
             toolbar.Add(modeToggle);
 
-            // Activity list field
-            var listField = new ObjectField("Activity List")
+            // Act list field
+            var listField = new ObjectField("Act List")
             {
-                objectType = typeof(ScriptableActivityList),
-                name = "activity-list-field"
+                objectType = typeof(ScriptableActList),
+                name = "act-list-field"
             };
             listField.style.flexGrow = 1f;
             listField.style.marginLeft = 4f;
@@ -175,16 +219,26 @@ namespace FuzzyBrain.Editor
                 _actorSO.Update();
                 _actorSO.FindProperty("activities").objectReferenceValue = evt.newValue;
                 _actorSO.ApplyModifiedProperties();
-                LoadActivityList();
+                LoadActList();
                 RebuildTable();
                 ShowEmptyDetail();
             });
             toolbar.Add(listField);
 
-            var newListBtn = new ToolbarButton(CreateNewActivityList) { text = "+ New List" };
+            var newListBtn = new ToolbarButton(CreateNewActList) { text = "+ New List" };
             toolbar.Add(newListBtn);
 
             rootVisualElement.Add(toolbar);
+
+            // Play-mode active act status bar
+            _activeActLabel = new Label("") { name = "active-act-label" };
+            _activeActLabel.style.paddingLeft      = 8f;
+            _activeActLabel.style.paddingRight     = 8f;
+            _activeActLabel.style.paddingTop       = 3f;
+            _activeActLabel.style.paddingBottom    = 3f;
+            _activeActLabel.style.backgroundColor  = new Color(0.15f, 0.4f, 0.15f, 0.85f);
+            _activeActLabel.style.display          = DisplayStyle.None;
+            rootVisualElement.Add(_activeActLabel);
 
             // Split view
             var splitView = new TwoPaneSplitView(0, 320f, TwoPaneSplitViewOrientation.Horizontal);
@@ -208,10 +262,18 @@ namespace FuzzyBrain.Editor
             // New Act — opens the wizard
             var newActBtn = new Button(() => ActWizard.Open()) { text = "+ New Act" };
             newActBtn.style.marginTop    = 2f;
-            newActBtn.style.marginBottom = 6f;
+            newActBtn.style.marginBottom = 2f;
             newActBtn.style.marginLeft   = 4f;
             newActBtn.style.marginRight  = 4f;
             leftPane.Add(newActBtn);
+
+            // Validate act list
+            var validateBtn = new Button(ValidateActList) { text = "Validate Act List" };
+            validateBtn.style.marginTop    = 2f;
+            validateBtn.style.marginBottom = 6f;
+            validateBtn.style.marginLeft   = 4f;
+            validateBtn.style.marginRight  = 4f;
+            leftPane.Add(validateBtn);
 
             splitView.Add(leftPane);
 
@@ -234,14 +296,14 @@ namespace FuzzyBrain.Editor
 
         private void BuildReorderableList()
         {
-            if (_activityListSO == null)
+            if (_actListSO == null)
             {
                 _reorderableList = null;
                 return;
             }
 
-            SerializedProperty listProp = _activityListSO.FindProperty("list");
-            _reorderableList = new ReorderableList(_activityListSO, listProp,
+            SerializedProperty listProp = _actListSO.FindProperty("list");
+            _reorderableList = new ReorderableList(_actListSO, listProp,
                 draggable: true, displayHeader: true,
                 displayAddButton: true, displayRemoveButton: true);
 
@@ -259,6 +321,12 @@ namespace FuzzyBrain.Editor
                 int condCount = act != null && act.conditions != null ? act.conditions.Length : 0;
                 string prefix = $"[{condCount}] ";
 
+                // Highlight the currently firing act during play mode
+                if (Application.isPlaying && act != null && act == _lastHighlightedAct)
+                    EditorGUI.DrawRect(
+                        new Rect(rect.x - 2f, rect.y - 2f, rect.width + 4f, rect.height + 4f),
+                        new Color(0.2f, 0.7f, 0.2f, 0.25f));
+
                 float prefixWidth = EditorStyles.label.CalcSize(new GUIContent(prefix)).x;
                 Rect prefixRect = new Rect(rect.x, rect.y, prefixWidth, rect.height);
                 Rect fieldRect  = new Rect(rect.x + prefixWidth, rect.y,
@@ -269,7 +337,7 @@ namespace FuzzyBrain.Editor
                 EditorGUI.ObjectField(fieldRect, element, typeof(Act), GUIContent.none);
                 if (EditorGUI.EndChangeCheck())
                 {
-                    _activityListSO.ApplyModifiedProperties();
+                    _actListSO.ApplyModifiedProperties();
                     _listContainer?.MarkDirtyRepaint();
                 }
             };
@@ -282,31 +350,29 @@ namespace FuzzyBrain.Editor
 
             _reorderableList.onReorderCallback = _ =>
             {
-                _activityListSO.ApplyModifiedProperties();
-                EditorUtility.SetDirty(_activityList);
+                _actListSO.ApplyModifiedProperties();
+                EditorUtility.SetDirty(_actList);
                 if (_selectedIndex >= 0)
                     ShowActDetail(_selectedIndex);
             };
 
             _reorderableList.onAddCallback = rl =>
             {
-                _activityListSO.Update();
+                _actListSO.Update();
                 listProp.arraySize++;
-                _activityListSO.ApplyModifiedProperties();
+                _actListSO.ApplyModifiedProperties();
                 rl.index = listProp.arraySize - 1;
             };
 
             _reorderableList.onRemoveCallback = rl =>
             {
-                _activityListSO.Update();
-                // ObjectField arrays need DeleteArrayElementAtIndex called twice
-                // if the element is non-null, to actually remove the slot.
-                SerializedProperty el = listProp.GetArrayElementAtIndex(rl.index);
-                if (el.objectReferenceValue != null)
-                    listProp.DeleteArrayElementAtIndex(rl.index);
-                listProp.DeleteArrayElementAtIndex(rl.index);
-                _activityListSO.ApplyModifiedProperties();
-                EditorUtility.SetDirty(_activityList);
+                _actListSO.Update();
+                // Re-fetch after Update() — the captured listProp reference may be stale.
+                SerializedProperty freshList = _actListSO.FindProperty("list");
+                if (rl.index < 0 || rl.index >= freshList.arraySize) return;
+                freshList.DeleteArrayElementAtIndex(rl.index);
+                _actListSO.ApplyModifiedProperties();
+                EditorUtility.SetDirty(_actList);
                 _selectedIndex = -1;
                 ShowEmptyDetail();
             };
@@ -314,22 +380,22 @@ namespace FuzzyBrain.Editor
 
         private void DrawReorderableList()
         {
-            if (_activityListSO == null)
+            if (_actListSO == null)
             {
-                EditorGUILayout.HelpBox("No Activity List assigned.", MessageType.Info);
+                EditorGUILayout.HelpBox("No Act List assigned.", MessageType.Info);
                 return;
             }
 
-            _activityListSO.Update();
+            _actListSO.Update();
             _reorderableList?.DoLayoutList();
-            _activityListSO.ApplyModifiedProperties();
+            _actListSO.ApplyModifiedProperties();
         }
 
-        private int  GetActCount() => _activityList != null ? _activityList.list.Count : 0;
+        private int  GetActCount() => _actList != null ? _actList.list.Count : 0;
         private Act  GetActAt(int index)
         {
-            if (_activityList == null || index < 0 || index >= _activityList.list.Count) return null;
-            return _activityList.list[index];
+            if (_actList == null || index < 0 || index >= _actList.list.Count) return null;
+            return _actList.list[index];
         }
 
         private void RebuildTable()
@@ -350,9 +416,9 @@ namespace FuzzyBrain.Editor
                 modeToggle.text = _actor.isFuSM ? "FuSM" : "FSM";
             }
 
-            var listField = rootVisualElement.Q<ObjectField>("activity-list-field");
+            var listField = rootVisualElement.Q<ObjectField>("act-list-field");
             if (listField != null)
-                listField.SetValueWithoutNotify(_activityList);
+                listField.SetValueWithoutNotify(_actList);
         }
 
         private void RefreshRowHighlight()
@@ -365,7 +431,7 @@ namespace FuzzyBrain.Editor
         private void ShowEmptyDetail()
         {
             _detailContent?.Clear();
-            if (_activityList == null) return;
+            if (_actList == null) return;
             var hint = new Label("Select an act to edit.");
             hint.style.marginTop = 12f;
             hint.style.color = new Color(0.6f, 0.6f, 0.6f);
@@ -376,14 +442,14 @@ namespace FuzzyBrain.Editor
         {
             _detailContent.Clear();
             Act act = GetActAt(index);
-            if (act == null || _activityListSO == null) return;
+            if (act == null || _actListSO == null) return;
 
-            _activityListSO.Update();
-            SerializedProperty actProp = _activityListSO
+            _actListSO.Update();
+            SerializedProperty actProp = _actListSO
                 .FindProperty("list")
                 .GetArrayElementAtIndex(index);
 
-            var actSO = new SerializedObject(act);
+            var actSO = _actSO = new SerializedObject(act);
 
             // Act name
             var nameField = new TextField("Act Name") { value = act.name };
@@ -405,8 +471,7 @@ namespace FuzzyBrain.Editor
             AddDivider();
 
             // Conditions header
-            var condLabel = new Label("Conditions") { style = { unityFontStyleAndWeight = FontStyle.Bold } };
-            _detailContent.Add(condLabel);
+            var condLabel = new Label("Conditions") { style = { unityFontStyleAndWeight = FontStyle.Bold } };            _detailContent.Add(condLabel);
 
             SerializedProperty condsProp = actSO.FindProperty("conditions");
             RebuildConditionList(act, actSO, condsProp);
@@ -447,13 +512,6 @@ namespace FuzzyBrain.Editor
             wizardRow.Add(assetBtn);
             _detailContent.Add(wizardRow);
 
-            AddDivider();
-
-            // onFire event
-            var eventLabel = new Label("On Fire") { style = { unityFontStyleAndWeight = FontStyle.Bold } };
-            _detailContent.Add(eventLabel);
-            _detailContent.Add(new PropertyField(actSO.FindProperty("onFire")));
-
             _detailContent.Bind(actSO);
         }
 
@@ -476,18 +534,6 @@ namespace FuzzyBrain.Editor
                 };
                 row.Add(nameLabel);
 
-                if (cond != null)
-                {
-                    var invertedToggle = new Toggle("inv") { value = cond.inverted };
-                    invertedToggle.style.marginRight = 4f;
-                    invertedToggle.RegisterValueChangedCallback(evt =>
-                    {
-                        cond.inverted = evt.newValue;
-                        EditorUtility.SetDirty(cond);
-                    });
-                    row.Add(invertedToggle);
-                }
-
                 var removeBtn = new Button(() =>
                 {
                     actSO.Update();
@@ -503,41 +549,41 @@ namespace FuzzyBrain.Editor
             }
         }
 
-        /// <summary>Sorts the current activity list descending by condition count.</summary>
+        /// <summary>Sorts the current act list descending by condition count.</summary>
         private void SortListByConditionCount()
         {
-            if (_activityList == null || _activityListSO == null) return;
+            if (_actList == null || _actListSO == null) return;
 
-            _activityList.list.Sort((a, b) =>
+            _actList.list.Sort((a, b) =>
             {
                 int ca = a != null && a.conditions != null ? a.conditions.Length : 0;
                 int cb = b != null && b.conditions != null ? b.conditions.Length : 0;
                 return cb.CompareTo(ca);
             });
 
-            EditorUtility.SetDirty(_activityList);
+            EditorUtility.SetDirty(_actList);
             AssetDatabase.SaveAssets();
             RebuildTable();
         }
 
-        private void CreateNewActivityList()
+        private void CreateNewActList()
         {
             if (_actorSO == null)
             {
                 EditorUtility.DisplayDialog(
                     "No Actor Selected",
-                    "Select an Actor in the Hierarchy before creating a new Activity List.",
+                    "Select an Actor in the Hierarchy before creating a new Act List.",
                     "OK");
                 return;
             }
 
             string listName = EditorInputDialog.Show(
-                "New Activity List", "Activity list name:", "New Activity List");
+                "New Act List", "Act list name:", "New Act List");
 
             if (string.IsNullOrWhiteSpace(listName)) return;
 
             var    settings = FuzzyBrainSettings.GetOrCreate();
-            string folder   = settings.activityListFolder;
+            string folder   = settings.actListFolder;
 
             if (!System.IO.Directory.Exists(folder))
                 System.IO.Directory.CreateDirectory(folder);
@@ -545,7 +591,7 @@ namespace FuzzyBrain.Editor
             string assetPath = AssetDatabase.GenerateUniqueAssetPath(
                 System.IO.Path.Combine(folder, listName + ".asset"));
 
-            var newList  = CreateInstance<ScriptableActivityList>();
+            var newList  = CreateInstance<ScriptableActList>();
             newList.name = listName;
             AssetDatabase.CreateAsset(newList, assetPath);
             AssetDatabase.SaveAssets();
@@ -554,13 +600,13 @@ namespace FuzzyBrain.Editor
             _actorSO.FindProperty("activities").objectReferenceValue = newList;
             _actorSO.ApplyModifiedProperties();
 
-            LoadActivityList();
+            LoadActList();
             RefreshToolbar();
             RebuildTable();
             ShowEmptyDetail();
 
             EditorGUIUtility.PingObject(newList);
-            Debug.Log($"[FuzzyBrain] Created activity list: {assetPath}");
+            Debug.Log($"[FuzzyBrain] Created act list: {assetPath}");
         }
 
         private void AddDivider()
@@ -571,6 +617,47 @@ namespace FuzzyBrain.Editor
             divider.style.marginTop    = 6f;
             divider.style.marginBottom = 6f;
             _detailContent.Add(divider);
+        }
+
+        // ── Validation ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Runs a dry-run validation pass over the current act list.
+        /// Conditions are checked via RequiredType against the actor's components.
+        /// </summary>
+        private void ValidateActList()
+        {
+            if (_actor == null || _actList == null)
+            {
+                Debug.LogWarning("[FuzzyBrain] Validate: no Actor or Act List selected.");
+                return;
+            }
+
+            Debug.Log($"[FuzzyBrain] Validating act list '{_actList.name}' on '{_actor.name}'...", _actor);
+
+            var cache = ActContext.BuildComponentCache(_actor);
+
+            ActContext ctx = ActContext.ForValidation(_actor, cache);
+
+            foreach (Act act in _actList.list)
+            {
+                if (act == null) continue;
+
+                // Validate conditions via their declared RequiredType
+                if (act.conditions != null)
+                {
+                    foreach (Condition cond in act.conditions)
+                    {
+                        if (cond == null) continue;
+                        if (!cache.ContainsKey(cond.RequiredType))
+                            Debug.LogWarning(
+                                $"[FuzzyBrain] '{act.name}' — condition '{cond.name}' requires " +
+                                $"{cond.RequiredType.Name} which is missing on '{_actor.name}'.", _actor);
+                    }
+                }
+            }
+
+            Debug.Log($"[FuzzyBrain] Validation complete. Check above for any warnings.", _actor);
         }
     }
 }

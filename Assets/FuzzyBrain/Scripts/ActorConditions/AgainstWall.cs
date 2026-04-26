@@ -15,14 +15,13 @@ public class AgainstWall : Condition<Collider2D>, IGizmoDrawable
     public XDirection xDirection;
 
     [Tooltip("Physics layer index to treat as a wall.")]
-    public int layer;
+    public LayerMask layer;
 
     protected override bool Verify(Collider2D col)
     {
-        int mask = 1 << layer;
         float rayLength = col.bounds.extents.x + 0.1f;
         Vector2 dir = xDirection == XDirection.Left ? Vector2.left : Vector2.right;
-        bool hit = Physics2D.Raycast(col.transform.position, dir, rayLength, mask);
+        bool hit = Physics2D.Raycast(col.transform.position, dir, rayLength, layer);
         return inverted ? !hit : hit;
     }
 
@@ -32,10 +31,9 @@ public class AgainstWall : Condition<Collider2D>, IGizmoDrawable
         Collider2D col = ctx.Get<Collider2D>();
         if (col == null) return;
 
-        int mask = 1 << layer;
         float rayLength = col.bounds.extents.x + 0.1f;
         Vector2 dir2D = xDirection == XDirection.Left ? Vector2.left : Vector2.right;
-        bool hit = Physics2D.Raycast(col.transform.position, dir2D, rayLength, mask);
+        bool hit = Physics2D.Raycast(col.transform.position, dir2D, rayLength, layer);
 
         Gizmos.color = Application.isPlaying ? (hit ? Color.green : Color.red) : Color.grey;
         Vector3 start = col.transform.position;

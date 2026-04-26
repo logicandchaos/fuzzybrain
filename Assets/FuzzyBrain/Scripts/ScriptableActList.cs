@@ -7,10 +7,10 @@ namespace FuzzyBrain
     /// ScriptableObject asset holding a prioritised list of Acts for an Actor.
     /// Multiple lists can be authored per actor and swapped at runtime.
     /// Acts are automatically sorted by descending condition count (specificity-first).
-    /// Create via Assets > Create > DynamicBehaviour > Activity List.
+    /// Create via Assets > Create > DynamicBehaviour > Act List.
     /// </summary>
-    [CreateAssetMenu(fileName = "New Activity List", menuName = "DynamicBehaviour/Activity List")]
-    public class ScriptableActivityList : ScriptableObject
+    [CreateAssetMenu(fileName = "New Act List", menuName = "DynamicBehaviour/Act List")]
+    public class ScriptableActList : ScriptableObject
     {
         public List<Act> list = new List<Act>();
 

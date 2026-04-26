@@ -1,22 +1,16 @@
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace FuzzyBrain
 {
     /// <summary>
-    /// A single rule in an actor's activity list.
-    /// When all conditions pass, onFire is invoked.
-    /// Wire onFire to any method on any component attached to the actor's GameObject.
-    /// Create via Assets > Create > DynamicBehaviour > Act.
+    /// Abstract base for all act types. Subclass once per behaviour, override PerformAct,
+    /// and create ScriptableObject instances via the Act Wizard.
+    /// Actor handles setCanAct, resetTime, and resetIdle after PerformAct returns.
     /// </summary>
-    [CreateAssetMenu(fileName = "New Act", menuName = "DynamicBehaviour/Act")]
-    public class Act : ScriptableObject
+    public abstract class Act : ScriptableObject
     {
         [Tooltip("Conditions evaluated with AND logic. All must pass for the act to fire.")]
         public Condition[] conditions = new Condition[0];
-
-        [Tooltip("Invoked when all conditions pass. Wire to methods on your components.")]
-        public UnityEvent onFire;
 
         [Tooltip("When true, blocks act evaluation for resetTime seconds after this act fires.")]
         public bool setCanAct;
@@ -42,11 +36,11 @@ namespace FuzzyBrain
             return true;
         }
 
-        /// <summary>Invokes onFire and resets idle time if resetIdle is true.</summary>
-        public void PerformAct(ActContext ctx)
-        {
-            onFire?.Invoke();
-            if (resetIdle) ctx.Actor.ResetIdle();
-        }
+        /// <summary>
+        /// Implement the behaviour this act performs when all conditions pass.
+        /// Use ctx.Get&lt;T&gt;() to access components cached on the Actor's GameObject.
+        /// Always null-check the result — the component may not be present.
+        /// </summary>
+        public abstract void PerformAct(ActContext ctx);
     }
 }

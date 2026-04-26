@@ -9,13 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 28a811134f6cf7143aa2646507edbb68, type: 3}
-  m_Name: New Act
+  m_Script: {fileID: 11500000, guid: 6e696de43993e274581d65fe53ba14a5, type: 3}
+  m_Name: NotIsStill
   m_EditorClassIdentifier: 
-  conditions: []
-  onFire:
-    m_PersistentCalls:
-      m_Calls: []
-  setCanAct: 0
-  resetTime: 0
-  resetIdle: 0
+  inverted: 1
+  threshold: 1

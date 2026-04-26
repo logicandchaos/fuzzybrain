@@ -1,6 +1,7 @@
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace FuzzyBrain.Editor
 {
@@ -16,8 +17,10 @@ namespace FuzzyBrain.Editor
 
         public string conditionScriptsFolder = "Assets/FuzzyBrain/Scripts/ActorConditions";
         public string conditionAssetsFolder  = "Assets/FuzzyBrain/Data/Conditions";
+        public string actScriptsFolder       = "Assets/FuzzyBrain/Scripts/Acts";
         public string actAssetsFolder        = "Assets/FuzzyBrain/Data/Acts";
-        public string activityListFolder     = "Assets/FuzzyBrain/Data/ActivityLists";
+        [FormerlySerializedAs("activityListFolder")]
+        public string actListFolder          = "Assets/FuzzyBrain/Data/ActLists";
 
         // ── Load / create ─────────────────────────────────────────────────────────
 
@@ -65,15 +68,17 @@ namespace FuzzyBrain.Editor
                         new GUIContent("Condition Scripts"));
                     EditorGUILayout.PropertyField(so.FindProperty("conditionAssetsFolder"),
                         new GUIContent("Condition Assets"));
+                    EditorGUILayout.PropertyField(so.FindProperty("actScriptsFolder"),
+                        new GUIContent("Act Scripts"));
                     EditorGUILayout.PropertyField(so.FindProperty("actAssetsFolder"),
                         new GUIContent("Act Assets"));
-                    EditorGUILayout.PropertyField(so.FindProperty("activityListFolder"),
-                        new GUIContent("Activity List Assets"));
+                    EditorGUILayout.PropertyField(so.FindProperty("actListFolder"),
+                        new GUIContent("Act List Assets"));
 
                     so.ApplyModifiedProperties();
                 },
                 keywords = new System.Collections.Generic.HashSet<string>
-                    { "FuzzyBrain", "Actor", "Condition", "Act", "ActivityList" }
+                    { "FuzzyBrain", "Actor", "Condition", "Act", "ActList" }
             };
         }
     }
