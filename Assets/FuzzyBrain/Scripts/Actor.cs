@@ -1,55 +1,55 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace FuzzyBrain
 {
     /// <summary>
-    /// The FuzzyBrain evaluation engine. Drop on any GameObject — no subclassing required.
+    /// The FuzzyBrain evaluation host. Drop on any GameObject to give it behaviour.
     ///
-    /// FSM mode (isFuSM = false, default): stops on the first matching act each tick.
-    /// FuSM mode (isFuSM = true): evaluates all acts and fires every match.
+    /// Actor manages the act list, evaluation loop, component caching,
+    /// and the act lock cycle (OnStart → IsComplete / maxClockTime timeout).
+    ///
+    /// isIdle is reset to false at the start of each evaluation tick.
+    /// Acts are responsible for setting it — the built-in IdleAct does this in PerformAct.
     ///
     /// Requires a FuzzyBrainManager in the scene to drive tick timing.
     /// If none is present when this Actor enables, one is created automatically
     /// with default settings (equivalent to per-frame evaluation).
+    ///
+    /// Optionally add an ActHistory component to enable combo sequencing.
     /// </summary>
-    [AddComponentMenu("DynamicBehaviour/Actor")]
+    [AddComponentMenu("FuzzyBrain/Actor")]
     public class Actor : MonoBehaviour
     {
-        [Header("Activities")]
+        [Header("Acts")]
         [SerializeField]
-        private ScriptableActList activities;
-
-        [Header("Evaluation Mode")]
-        [Tooltip("False (FSM): stop at the first matching act. True (FuSM): fire all matching acts.")]
-        public bool isFuSM;
+        private ScriptableActList acts;
 
         [Header("Actor State")]
-        public bool canAct = true;
         public bool isIdle;
         public bool isAlive = true;
 
-        [SerializeField]
-        private float idleDelay = 1f;
+        [Header("Current Act")]
+        [SerializeField, ReadOnly]
+        private Act _currentAct;
 
-        /// <summary>Seconds of idle accumulation before isIdle is set. Exposed internally for test access.</summary>
-        internal float IdleDelay
-        {
-            get => idleDelay;
-            set => idleDelay = value;
-        }
-
-        private float _idleTime;
         private Dictionary<Type, Component> _componentCache;
         private Dictionary<Condition, bool> _conditionCache;
+        private ActClock   _actClock;
+        private ActHistory _actHistory;
 
         /// <summary>
         /// The act that fired most recently this session.
-        /// Null until the first evaluation. Used by DynamicBehaviourWindow for play-mode highlight.
+        /// Null until the first evaluation. Used by FuzzyBrainWindow for play-mode highlight.
         /// </summary>
         public Act LastFiredAct { get; private set; }
+
+        /// <summary>
+        /// The act currently locked. Null when no act is running.
+        /// Readable by conditions and external scripts via ctx.Get&lt;Actor&gt;().CurrentAct.
+        /// </summary>
+        public Act CurrentAct => _currentAct;
 
         // ── Unity lifecycle ───────────────────────────────────────────────────────
 
@@ -57,6 +57,8 @@ namespace FuzzyBrain
         {
             _componentCache = ActContext.BuildComponentCache(this);
             _conditionCache = new Dictionary<Condition, bool>();
+            _actClock       = GetComponent<ActClock>() ?? gameObject.AddComponent<ActClock>();
+            _actHistory     = GetComponent<ActHistory>();
         }
 
         private void OnEnable()
@@ -68,8 +70,7 @@ namespace FuzzyBrain
 
         /// <summary>
         /// Ensures a FuzzyBrainManager exists in the scene.
-        /// If none is found, creates one automatically with default settings,
-        /// matching the same behaviour as per-frame self-ticking.
+        /// If none is found, creates one automatically with default settings.
         /// </summary>
         private static void EnsureManager()
         {
@@ -89,38 +90,57 @@ namespace FuzzyBrain
         // ── Evaluation loop ───────────────────────────────────────────────────────
 
         /// <summary>
-        /// Runs one evaluation pass over the act list.
+        /// Runs one evaluation pass.
         /// Called by FuzzyBrainManager on its tick schedule.
-        /// FSM mode: stops after the first matching act.
-        /// FuSM mode: evaluates all acts and fires every match.
-        /// Each unique condition SO is evaluated at most once per call.
+        ///
+        /// If an act is currently locked, polls IsComplete and the ActClock timeout.
+        /// If unlocked (or immediately unlocked this tick), evaluates the act list and
+        /// fires the first act whose conditions all pass.
+        ///
+        /// isIdle is reset to false before evaluation each tick. Acts that represent an idle
+        /// state should set ctx.Actor.isIdle = true in their PerformAct implementation.
         /// </summary>
         public void ActorUpdate()
         {
-            if (activities == null) return;
+            if (acts == null) return;
 
             _conditionCache.Clear();
             ActContext ctx = new ActContext(this, _componentCache, _conditionCache);
 
-            foreach (Act activity in activities.list)
+            // ── Locked phase ──────────────────────────────────────────────────────
+            if (_currentAct != null)
             {
-                if (activity == null) continue;
+                bool done    = _currentAct.IsComplete(ctx);
+                bool timeout = _actClock.HasTimedOut(_currentAct.maxClockTime);
 
-                if (activity.CheckConditions(ctx))
+                if (!done && !timeout) return;
+
+                // Unlock: record in history before clearing.
+                _actHistory?.RecordAct(_currentAct);
+                _currentAct = null;
+            }
+
+            // ── Normal evaluation ─────────────────────────────────────────────────
+            isIdle = false;
+
+            foreach (Act act in acts.list)
+            {
+                if (act == null) continue;
+
+                if (!act.CheckConditions(ctx)) continue;
+
+                act.OnStart(ctx);
+                act.PerformAct(ctx);
+                LastFiredAct = act;
+
+                // Lock only if the act declares it is not yet complete.
+                if (!act.IsComplete(ctx))
                 {
-                    activity.PerformAct(ctx);
-                    LastFiredAct = activity;
-
-                    if (activity.resetIdle) ResetIdle();
-
-                    if (activity.setCanAct)
-                    {
-                        canAct = false;
-                        StartCoroutine(ResetCanAct(activity.resetTime));
-                    }
-
-                    if (!isFuSM) return;
+                    _currentAct = act;
+                    _actClock.RecordStart();
                 }
+
+                return;
             }
         }
 
@@ -129,19 +149,43 @@ namespace FuzzyBrain
         /// <summary>Sorts the act list and resets actor state. Called automatically on enable.</summary>
         public void EnableActor()
         {
-            if (activities != null)
-                activities.SortActivities();
+            if (acts != null)
+                acts.SortActs();
 
             ResetActor();
+        }
+
+        /// <summary>
+        /// Rebuilds the component cache and re-sorts the current act list without touching actor state.
+        /// Call this after adding or removing acts, assigning a new list, or modifying components.
+        /// Safe to call mid-game; takes effect on the next ActorUpdate tick.
+        /// </summary>
+        public void Refresh()
+        {
+            _componentCache = ActContext.BuildComponentCache(this);
+            _actHistory     = GetComponent<ActHistory>();
+
+            if (acts != null)
+                acts.SortIfDirty();
+        }
+
+        /// <summary>
+        /// Assigns a new act list and immediately refreshes the actor.
+        /// Does not reset actor state — call ResetActor() explicitly if needed.
+        /// </summary>
+        /// <param name="newList">The act list to assign. Pass null to clear the current list.</param>
+        public void SetActList(ScriptableActList newList)
+        {
+            acts = newList;
+            Refresh();
         }
 
         /// <summary>Resets engine state to initial values.</summary>
         public void ResetActor()
         {
-            isAlive = true;
-            canAct  = true;
-            _idleTime = 0f;
-            isIdle  = false;
+            isAlive     = true;
+            isIdle      = false;
+            _currentAct = null;
         }
 
         // ── Public state methods ──────────────────────────────────────────────────
@@ -151,38 +195,6 @@ namespace FuzzyBrain
         {
             isAlive = false;
             gameObject.SetActive(false);
-        }
-
-        /// <summary>Resets the idle timer and clears the isIdle flag.</summary>
-        public void ResetIdle()
-        {
-            _idleTime = 0f;
-            isIdle    = false;
-        }
-
-        /// <summary>
-        /// Accumulates idle time each call and sets isIdle once idleDelay is reached.
-        /// Wire to onFire on a low-priority fallback act to detect inactivity.
-        /// </summary>
-        public void AddIdleTime()
-        {
-            _idleTime += Time.deltaTime;
-            if (_idleTime > idleDelay)
-            {
-                isIdle    = true;
-                _idleTime = 0f;
-            }
-        }
-
-        // ── Cooldown ──────────────────────────────────────────────────────────────
-
-        /// <summary>Restores canAct after the given delay. Started automatically when setCanAct is true.</summary>
-        public void StartResetCanAct(float delay) => StartCoroutine(ResetCanAct(delay));
-
-        private IEnumerator ResetCanAct(float delay)
-        {
-            yield return new WaitForSeconds(delay);
-            canAct = true;
         }
     }
 }

@@ -79,8 +79,17 @@ namespace FuzzyBrain.Editor
             Selection.selectionChanged             += OnSelectionChanged;
             EditorApplication.update               += OnEditorUpdate;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            EditorApplication.hierarchyChanged     += RefreshToolbar;
             Undo.undoRedoPerformed                 += OnUndoRedo;
             BuildUI();
+            // Force the initial detail state independently of the selection guard,
+            // so the about panel shows immediately when the window first opens.
+            ShowEmptyDetail();
+            OnSelectionChanged();
+        }
+
+        private void OnFocus()
+        {
             OnSelectionChanged();
         }
 
@@ -90,6 +99,7 @@ namespace FuzzyBrain.Editor
             Selection.selectionChanged             -= OnSelectionChanged;
             EditorApplication.update               -= OnEditorUpdate;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            EditorApplication.hierarchyChanged     -= RefreshToolbar;
             Undo.undoRedoPerformed                 -= OnUndoRedo;
         }
 
@@ -165,7 +175,7 @@ namespace FuzzyBrain.Editor
 
             if (_actorSO == null) return;
 
-            SerializedProperty prop = _actorSO.FindProperty("activities");
+            SerializedProperty prop = _actorSO.FindProperty("acts");
             if (prop == null) return;
 
             _actList = prop.objectReferenceValue as ScriptableActList;
@@ -174,6 +184,24 @@ namespace FuzzyBrain.Editor
                 _actListSO = new SerializedObject(_actList);
                 BuildReorderableList();
             }
+        }
+
+        private void ClearDestroyedActList()
+        {
+            _actList       = null;
+            _actListSO     = null;
+            _reorderableList = null;
+            _selectedIndex = -1;
+
+            if (_actorSO != null)
+            {
+                _actorSO.Update();
+                _actorSO.FindProperty("acts").objectReferenceValue = null;
+                _actorSO.ApplyModifiedProperties();
+            }
+
+            RefreshToolbar();
+            ShowEmptyDetail();
         }
 
         // ── Build UI ──────────────────────────────────────────────────────────────
@@ -192,19 +220,6 @@ namespace FuzzyBrain.Editor
             _actorLabel.style.marginRight = 10f;
             toolbar.Add(_actorLabel);
 
-            // FSM / FuSM toggle
-            var modeToggle = new ToolbarToggle { text = "FuSM", name = "mode-toggle" };
-            modeToggle.style.marginRight = 6f;
-            modeToggle.RegisterValueChangedCallback(evt =>
-            {
-                if (_actorSO == null) return;
-                _actorSO.Update();
-                _actorSO.FindProperty("isFuSM").boolValue = evt.newValue;
-                _actorSO.ApplyModifiedProperties();
-                modeToggle.text = evt.newValue ? "FuSM" : "FSM";
-            });
-            toolbar.Add(modeToggle);
-
             // Act list field
             var listField = new ObjectField("Act List")
             {
@@ -217,7 +232,7 @@ namespace FuzzyBrain.Editor
             {
                 if (_actorSO == null) return;
                 _actorSO.Update();
-                _actorSO.FindProperty("activities").objectReferenceValue = evt.newValue;
+                _actorSO.FindProperty("acts").objectReferenceValue = evt.newValue;
                 _actorSO.ApplyModifiedProperties();
                 LoadActList();
                 RebuildTable();
@@ -386,6 +401,13 @@ namespace FuzzyBrain.Editor
                 return;
             }
 
+            // The asset may have been deleted from the project while the window was open.
+            if (_actListSO.targetObject == null)
+            {
+                ClearDestroyedActList();
+                return;
+            }
+
             _actListSO.Update();
             _reorderableList?.DoLayoutList();
             _actListSO.ApplyModifiedProperties();
@@ -409,13 +431,6 @@ namespace FuzzyBrain.Editor
             if (_actorLabel == null) return;
             _actorLabel.text = _actor != null ? $"Actor: {_actor.name}" : "No Actor selected";
 
-            var modeToggle = rootVisualElement.Q<ToolbarToggle>("mode-toggle");
-            if (modeToggle != null && _actor != null)
-            {
-                modeToggle.SetValueWithoutNotify(_actor.isFuSM);
-                modeToggle.text = _actor.isFuSM ? "FuSM" : "FSM";
-            }
-
             var listField = rootVisualElement.Q<ObjectField>("act-list-field");
             if (listField != null)
                 listField.SetValueWithoutNotify(_actList);
@@ -431,6 +446,15 @@ namespace FuzzyBrain.Editor
         private void ShowEmptyDetail()
         {
             _detailContent?.Clear();
+
+            // No Actor selected — show the full about panel in the right pane.
+            if (_actor == null)
+            {
+                _detailContent?.Add(FuzzyBrainAboutPanel.Build());
+                return;
+            }
+
+            // Actor selected but no act chosen yet.
             if (_actList == null) return;
             var hint = new Label("Select an act to edit.");
             hint.style.marginTop = 12f;
@@ -464,9 +488,7 @@ namespace FuzzyBrain.Editor
             AddDivider();
 
             // Flags
-            _detailContent.Add(new PropertyField(actSO.FindProperty("setCanAct"), "Set Can Act"));
-            _detailContent.Add(new PropertyField(actSO.FindProperty("resetTime"), "Reset Time (s)"));
-            _detailContent.Add(new PropertyField(actSO.FindProperty("resetIdle"), "Reset Idle"));
+            _detailContent.Add(new PropertyField(actSO.FindProperty("maxClockTime"), "Max Clock Time (s)"));
 
             AddDivider();
 
@@ -554,6 +576,7 @@ namespace FuzzyBrain.Editor
         {
             if (_actList == null || _actListSO == null) return;
 
+            Undo.RecordObject(_actList, "Sort Act List");
             _actList.list.Sort((a, b) =>
             {
                 int ca = a != null && a.conditions != null ? a.conditions.Length : 0;
@@ -563,6 +586,7 @@ namespace FuzzyBrain.Editor
 
             EditorUtility.SetDirty(_actList);
             AssetDatabase.SaveAssets();
+            _actListSO.Update();
             RebuildTable();
         }
 
@@ -577,13 +601,16 @@ namespace FuzzyBrain.Editor
                 return;
             }
 
-            string listName = EditorInputDialog.Show(
-                "New Act List", "Act list name:", "New Act List");
+            var    settings       = FuzzyBrainSettings.GetOrCreate();
+            string defaultFolder  = settings.actListFolder;
+
+            string listName = EditorInputDialog.ShowWithFolder(
+                "New Act List", "Act list name:", "New Act List", defaultFolder, out string folder);
 
             if (string.IsNullOrWhiteSpace(listName)) return;
 
-            var    settings = FuzzyBrainSettings.GetOrCreate();
-            string folder   = settings.actListFolder;
+            if (string.IsNullOrWhiteSpace(folder))
+                folder = defaultFolder;
 
             if (!System.IO.Directory.Exists(folder))
                 System.IO.Directory.CreateDirectory(folder);
@@ -594,10 +621,24 @@ namespace FuzzyBrain.Editor
             var newList  = CreateInstance<ScriptableActList>();
             newList.name = listName;
             AssetDatabase.CreateAsset(newList, assetPath);
+
+            // Inject the built-in idle act so every new list starts with a resting state.
+            var idleAct = AssetDatabase.LoadAssetAtPath<Act>(ActListPostprocessor.IdleActPath);
+            if (idleAct != null)
+            {
+                newList.list.Add(idleAct);
+                EditorUtility.SetDirty(newList);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    $"[FuzzyBrain] Could not inject idle act — Idle.asset not found at '{ActListPostprocessor.IdleActPath}'.");
+            }
+
             AssetDatabase.SaveAssets();
 
             _actorSO.Update();
-            _actorSO.FindProperty("activities").objectReferenceValue = newList;
+            _actorSO.FindProperty("acts").objectReferenceValue = newList;
             _actorSO.ApplyModifiedProperties();
 
             LoadActList();

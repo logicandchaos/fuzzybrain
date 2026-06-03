@@ -22,16 +22,18 @@ namespace FuzzyBrain
 
         /// <summary>
         /// Returns the cached component of type T, or null if not present on the actor.
-        /// Logs a warning when the component is missing.
+        /// Logs a warning when the component is missing (runtime mode only).
         /// In validation mode, always returns null to suppress act behaviour.
         /// </summary>
         public T Get<T>() where T : Component
         {
             if (!_componentCache.TryGetValue(typeof(T), out Component c))
             {
-                Debug.LogWarning(
-                    $"[FuzzyBrain] {typeof(T).Name} is missing on '{GameObject.name}'. " +
-                    $"Ensure the component is attached to the Actor's GameObject.");
+                if (!_isValidating)
+                    Debug.LogWarning(
+                        $"[FuzzyBrain] {Actor.name}: act requested {typeof(T).Name} " +
+                        $"but it is not present on this GameObject.",
+                        Actor);
                 return null;
             }
 

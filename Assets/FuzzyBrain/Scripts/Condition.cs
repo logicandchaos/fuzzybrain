@@ -4,7 +4,7 @@ using UnityEngine;
 namespace FuzzyBrain
 {
     /// <summary>
-    /// Non-generic abstract base for all DynamicBehaviour conditions.
+    /// Non-generic abstract base for all FuzzyBrain conditions.
     /// Holds the inverted flag and the two abstract members Act.CheckConditions needs
     /// without knowing the generic type parameter T.
     /// Do not subclass this directly — subclass Condition<T> instead.

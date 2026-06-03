@@ -29,6 +29,7 @@ namespace FuzzyBrain.Editor
         private string _conditionName = "MyCondition";
         private int    _componentIndex;
         private string _scriptFolder;
+        private string _namespace;
         private string _menuPath;
         private List<Type>   _componentTypes = new List<Type>();
         private List<string> _componentNames = new List<string>();
@@ -98,6 +99,7 @@ namespace FuzzyBrain.Editor
             _scriptFolder      = settings.conditionScriptsFolder;
             _assetFolder       = settings.conditionAssetsFolder;
             _quickScriptFolder = settings.conditionScriptsFolder;
+            _namespace         = settings.defaultNamespace;
 
             PopulateComponentTypes();
             PopulateConditionTypes();
@@ -217,6 +219,10 @@ namespace FuzzyBrain.Editor
             _componentIndex = EditorGUILayout.Popup("Component Type",
                 _componentIndex, _componentNames.ToArray());
 
+            _namespace = EditorGUILayout.TextField(
+                new GUIContent("Namespace", "C# namespace for the generated class. Leave empty for global namespace."),
+                _namespace);
+
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
 
@@ -271,21 +277,24 @@ namespace FuzzyBrain.Editor
             Type   componentType = _componentTypes[_componentIndex];
             string typeName      = componentType.Name;
 
-            string template =
-$@"using UnityEngine;
-using FuzzyBrain;
+            bool   hasNamespace = !string.IsNullOrWhiteSpace(_namespace);
+            string indent       = hasNamespace ? "    " : string.Empty;
 
-[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menuPath}"")]
-public class {_conditionName} : Condition<{typeName}>
-{{
-    protected override bool Verify({typeName} component)
-    {{
-        // TODO: implement condition logic
-        bool result = false;
-        return inverted ? !result : result;
-    }}
-}}
-";
+            string classBody =
+$@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menuPath}"")]
+{indent}public class {_conditionName} : Condition<{typeName}>
+{indent}{{
+{indent}    protected override bool Verify({typeName} component)
+{indent}    {{
+{indent}        // TODO: implement condition logic
+{indent}        bool result = false;
+{indent}        return inverted ? !result : result;
+{indent}    }}
+{indent}}}";
+
+            string template = hasNamespace
+                ? $"using UnityEngine;\nusing FuzzyBrain;\n\nnamespace {_namespace}\n{{\n{classBody}\n}}\n"
+                : $"using UnityEngine;\nusing FuzzyBrain;\n\n{classBody}\n";
             if (!Directory.Exists(_scriptFolder))
                 Directory.CreateDirectory(_scriptFolder);
 

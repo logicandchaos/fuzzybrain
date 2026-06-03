@@ -19,8 +19,11 @@ namespace FuzzyBrain.Editor
         public string conditionAssetsFolder  = "Assets/FuzzyBrain/Data/Conditions";
         public string actScriptsFolder       = "Assets/FuzzyBrain/Scripts/Acts";
         public string actAssetsFolder        = "Assets/FuzzyBrain/Data/Acts";
-        [FormerlySerializedAs("activityListFolder")]
+        [FormerlySerializedAs("ActListFolder")]
         public string actListFolder          = "Assets/FuzzyBrain/Data/ActLists";
+
+        [Tooltip("Default C# namespace written into generated Act and Condition scripts. Leave empty for the global namespace.")]
+        public string defaultNamespace       = string.Empty;
 
         // ── Load / create ─────────────────────────────────────────────────────────
 
@@ -74,6 +77,13 @@ namespace FuzzyBrain.Editor
                         new GUIContent("Act Assets"));
                     EditorGUILayout.PropertyField(so.FindProperty("actListFolder"),
                         new GUIContent("Act List Assets"));
+
+                    EditorGUILayout.Space(6f);
+                    EditorGUILayout.LabelField("Code Generation", EditorStyles.boldLabel);
+                    EditorGUILayout.Space(2f);
+                    EditorGUILayout.PropertyField(so.FindProperty("defaultNamespace"),
+                        new GUIContent("Default Namespace",
+                            "Namespace written into generated Act and Condition scripts. Leave empty for global namespace."));
 
                     so.ApplyModifiedProperties();
                 },

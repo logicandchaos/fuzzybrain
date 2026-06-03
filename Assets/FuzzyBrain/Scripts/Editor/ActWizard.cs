@@ -22,6 +22,7 @@ namespace FuzzyBrain.Editor
 
         private string _className    = "MyAct";
         private string _scriptFolder;
+        private string _namespace;
         private string _menuPath;
 
         // ── Tab 2 state ───────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ namespace FuzzyBrain.Editor
             var settings  = FuzzyBrainSettings.GetOrCreate();
             _scriptFolder = settings.actScriptsFolder;
             _assetFolder  = settings.actAssetsFolder;
+            _namespace    = settings.defaultNamespace;
 
             PopulateActTypes();
             RefreshMenuPath();
@@ -120,6 +122,10 @@ namespace FuzzyBrain.Editor
             if (EditorGUI.EndChangeCheck())
                 RefreshMenuPath();
 
+            _namespace = EditorGUILayout.TextField(
+                new GUIContent("Namespace", "C# namespace for the generated class. Leave empty for global namespace."),
+                _namespace);
+
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
 
@@ -168,19 +174,22 @@ namespace FuzzyBrain.Editor
 
         private void GenerateScript()
         {
-            string template =
-$@"using FuzzyBrain;
-using UnityEngine;
+            bool hasNamespace = !string.IsNullOrWhiteSpace(_namespace);
+            string indent     = hasNamespace ? "    " : string.Empty;
 
-[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath}"")]
-public class {_className} : Act
-{{
-    public override void PerformAct(ActContext ctx)
-    {{
-        // TODO: implement act behaviour
-    }}
-}}
-";
+            string classBody =
+$@"{indent}[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath}"")]
+{indent}public class {_className} : Act
+{indent}{{
+{indent}    public override void PerformAct(ActContext ctx)
+{indent}    {{
+{indent}        // TODO: implement act behaviour
+{indent}    }}
+{indent}}}";
+
+            string template = hasNamespace
+                ? $"using FuzzyBrain;\nusing UnityEngine;\n\nnamespace {_namespace}\n{{\n{classBody}\n}}\n"
+                : $"using FuzzyBrain;\nusing UnityEngine;\n\n{classBody}\n";
             if (!Directory.Exists(_scriptFolder))
                 Directory.CreateDirectory(_scriptFolder);
 
@@ -305,8 +314,10 @@ public class {_className} : Act
 
             Debug.Log($"[FuzzyBrain] Created act asset: {assetPath}");
 
+            // Destroy the editor before nulling out — Editor inherits from UnityEngine.Object
+            // and must be explicitly destroyed to avoid a leak.
+            if (_previewEditor != null) { DestroyImmediate(_previewEditor); _previewEditor = null; }
             _previewInstance = null;
-            _previewEditor   = null;
             RefreshPreviewInstance();
         }
     }

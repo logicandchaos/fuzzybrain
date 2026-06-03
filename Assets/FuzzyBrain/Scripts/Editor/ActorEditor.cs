@@ -8,6 +8,7 @@ namespace FuzzyBrain.Editor
 {
     /// <summary>
     /// Custom inspector for Actor.
+    /// Warns when no FuzzyBrainManager is in the scene.
     /// Adds an "Open FuzzyBrain Editor" button.
     /// Implements OnDrawGizmosSelected to call DrawGizmo on every condition
     /// in the active list that implements IGizmoDrawable.
@@ -15,9 +16,14 @@ namespace FuzzyBrain.Editor
     [CustomEditor(typeof(Actor))]
     public class ActorEditor : UnityEditor.Editor
     {
+        private Dictionary<Type, Component> _gizmoComponentCache;
+        private Actor                       _gizmoCachedActor;
+
         public override void OnInspectorGUI()
         {
             DrawDefaultInspector();
+
+            Actor actor = (Actor)target;
 
             // ── Manager check ─────────────────────────────────────────────────────
             bool hasManager = FindFirstObjectByType<FuzzyBrainManager>() != null;
@@ -50,18 +56,22 @@ namespace FuzzyBrain.Editor
         {
             Actor actor = (Actor)target;
 
-            SerializedProperty activitiesProp = serializedObject.FindProperty("activities");
+            SerializedProperty activitiesProp = serializedObject.FindProperty("acts");
             if (activitiesProp == null) return;
 
             ScriptableActList list = activitiesProp.objectReferenceValue as ScriptableActList;
             if (list == null) return;
 
-            // Build a temporary component cache — _componentCache is private, so we rebuild here.
-            // This runs only when the actor is selected in the editor, not on the hot path.
-            var tempComponentCache = ActContext.BuildComponentCache(actor);
+            // Rebuild the cache only when the actor reference changes (e.g. multi-selection switch).
+            // This avoids calling GetComponents + reflection on every Scene view repaint.
+            if (_gizmoComponentCache == null || _gizmoCachedActor != actor)
+            {
+                _gizmoCachedActor    = actor;
+                _gizmoComponentCache = ActContext.BuildComponentCache(actor);
+            }
 
             var tempConditionCache = new Dictionary<Condition, bool>();
-            ActContext ctx = new ActContext(actor, tempComponentCache, tempConditionCache);
+            ActContext ctx = new ActContext(actor, _gizmoComponentCache, tempConditionCache);
 
             foreach (Act act in list.list)
             {

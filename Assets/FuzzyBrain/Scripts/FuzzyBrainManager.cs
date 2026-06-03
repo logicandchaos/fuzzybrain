@@ -17,15 +17,16 @@ namespace FuzzyBrain
     {
         public static FuzzyBrainManager Instance { get; private set; }
 
-        [SerializeField, Tooltip("Number of stagger buckets. Higher values spread evaluation cost more evenly across frames.")]
+        [SerializeField, Min(1), Tooltip("Number of stagger buckets. Higher values spread evaluation cost more evenly across frames.")]
         private int bucketCount = 4;
 
-        [SerializeField, Tooltip("Seconds between full condition evaluations per actor.")]
+        [SerializeField, Min(0f), Tooltip("Seconds between full condition evaluations per actor. Set to 0 to evaluate every frame.")]
         private float tickInterval = 0.1f;
 
         private List<Actor>[] _buckets;
         private float[] _bucketNextTick;
         private int _registrationCounter;
+        private readonly Dictionary<Actor, int> _actorBucket = new Dictionary<Actor, int>();
 
         // ── Singleton lifecycle ───────────────────────────────────────────────────
 
@@ -51,14 +52,20 @@ namespace FuzzyBrain
 
         private void InitBuckets()
         {
-            _buckets       = new List<Actor>[bucketCount];
-            _bucketNextTick = new float[bucketCount];
+            bucketCount  = Mathf.Max(1, bucketCount);
+            tickInterval = Mathf.Max(0f, tickInterval);
 
+            _buckets        = new List<Actor>[bucketCount];
+            _bucketNextTick = new float[bucketCount];
+            _actorBucket.Clear();
+
+            // Start each bucket one full interval ahead so no bucket fires immediately
+            // on the first frame, and the stagger offset is preserved from the start.
             float offset = tickInterval / bucketCount;
             for (int i = 0; i < bucketCount; i++)
             {
-                _buckets[i]       = new List<Actor>();
-                _bucketNextTick[i] = Time.time + i * offset;
+                _buckets[i]        = new List<Actor>();
+                _bucketNextTick[i] = Time.time + tickInterval + i * offset;
             }
         }
 
@@ -72,16 +79,18 @@ namespace FuzzyBrain
         {
             int bucket = _registrationCounter++ % bucketCount;
             _buckets[bucket].Add(actor);
+            _actorBucket[actor] = bucket;
         }
 
         /// <summary>
-        /// Removes an Actor from all buckets.
+        /// Removes an Actor from its bucket in O(1) using a reverse-lookup dictionary.
         /// Called automatically by Actor.OnDisable.
         /// </summary>
         public void Unregister(Actor actor)
         {
-            for (int b = 0; b < bucketCount; b++)
-                _buckets[b].Remove(actor);
+            if (!_actorBucket.TryGetValue(actor, out int bucket)) return;
+            _buckets[bucket].Remove(actor);
+            _actorBucket.Remove(actor);
         }
 
         // ── Tick loop ─────────────────────────────────────────────────────────────

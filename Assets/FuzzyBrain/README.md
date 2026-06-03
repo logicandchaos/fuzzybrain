@@ -6,7 +6,7 @@ A lightweight, data-driven behaviour system for Unity. Based on the fuzzy patter
 
 ## Core Idea
 
-An **Actor** holds a **ScriptableActivityList** — a prioritised list of **Acts**. Each tick, acts are evaluated top-to-bottom. The first act whose conditions all pass fires its `onFire` UnityEvent (FSM mode), or every matching act fires (FuSM mode).
+An **Actor** holds a **ScriptableActList** — a prioritised list of **Acts**. Each tick, acts are evaluated top-to-bottom. The first act whose conditions all pass fires its `onFire` UnityEvent (FSM mode), or every matching act fires (FuSM mode).
 
 Acts are sorted automatically by **specificity**: more conditions = higher priority. No manual ordering required.
 
@@ -23,7 +23,7 @@ Act — 0 conditions   ← fallback, always fires
 
 1. Add an **Actor** component to your GameObject.
 2. Open `Tools > FuzzyBrain > Editor`.
-3. With the Actor selected, click **+ New List** to create a `ScriptableActivityList` asset.
+3. With the Actor selected, click **+ New List** to create a `ScriptableActList` asset. A dialog will prompt for a name and a save folder — the folder defaults to the path configured in Project Settings.
 4. Click **+ New Act** to open the Act Wizard, or **+ Add Act** to pick an existing Act asset.
 5. Select an act row in the list to open its detail panel — add conditions and wire **On Fire** to any method.
 
@@ -183,6 +183,27 @@ Without a manager, each Actor self-ticks every `Update()` frame. Both modes prod
 
 ---
 
+## Runtime List Mutation
+
+Swap an actor's list at runtime with `SetActList()`, or mutate the existing list with `Add()` / `Remove()` and call `Refresh()` to re-sort and rebuild the component cache without resetting actor state.
+
+Use `Clone()` to give each actor a private in-memory copy of a shared list asset so mutations don't affect other actors:
+
+```csharp
+var brain = sharedTemplate.Clone();
+actor.SetActList(brain);
+
+brain.Add(newActAsset);
+actor.Refresh();
+
+brain.Remove(obsoleteActAsset);
+actor.Refresh();
+```
+
+Call `ResetActor()` explicitly alongside any of the above if a clean state is also needed.
+
+---
+
 ## Editor Tools
 
 | Tool | Open via |
@@ -191,5 +212,9 @@ Without a manager, each Actor self-ticks every `Update()` frame. Both modes prod
 | **Act Wizard** | `Tools > FuzzyBrain > New Act` or **+ New Act** in the window |
 | **Condition Wizard** | `Tools > FuzzyBrain > New Condition` or the button in the Act detail panel |
 | **Project Settings** | `Edit > Project Settings > FuzzyBrain` |
+
+The FuzzyBrain Window re-evaluates the Hierarchy selection whenever it gains focus, so it always reflects the correct Actor even if you clicked away without changing selection.
+
+**+ New List** opens a dialog where you can set both the asset name and the save folder. The folder field pre-fills from Project Settings and supports a `…` browse button to pick any folder inside the project.
 
 The Condition Wizard has three tabs: **Generate Script** (boilerplate `Condition<T>` subclass), **Create Asset** (instantiate a compiled condition type), and **Quick Condition** (generate a field-comparison condition with no code).
