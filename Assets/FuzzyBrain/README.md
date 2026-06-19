@@ -1,20 +1,20 @@
 # FuzzyBrain
 
-A lightweight, data-driven behaviour system for Unity. Based on the fuzzy pattern matching approach described in the Game Developer article *"Creating Behaviours with Fuzzy Pattern Matching"*.
+A lightweight, data-driven behaviour system for Unity. Acts and Conditions are ScriptableObject assets — behaviour is configured in the editor, not hard-coded.
 
 ---
 
 ## Core Idea
 
-An **Actor** holds a **ScriptableActList** — a prioritised list of **Acts**. Each tick, acts are evaluated top-to-bottom. The first act whose conditions all pass fires its `onFire` UnityEvent (FSM mode), or every matching act fires (FuSM mode).
+An **Actor** holds a **ScriptableActList** — a prioritised list of **Acts**. Each tick the manager calls `ActorUpdate` on every registered Actor. Acts are evaluated top-to-bottom; the first act whose conditions all pass fires and stops evaluation for that tick.
 
-Acts are sorted automatically by **specificity**: more conditions = higher priority. No manual ordering required.
+Acts are sorted automatically by **specificity**: more conditions = higher priority. The zero-condition act is always last and acts as the fallback.
 
 ```
 Act — 3 conditions   ← evaluated first
 Act — 2 conditions
 Act — 1 condition
-Act — 0 conditions   ← fallback, always fires
+Act — 0 conditions   ← fallback, always fires if nothing else matches
 ```
 
 ---
@@ -23,50 +23,40 @@ Act — 0 conditions   ← fallback, always fires
 
 1. Add an **Actor** component to your GameObject.
 2. Open `Tools > FuzzyBrain > Editor`.
-3. With the Actor selected, click **+ New List** to create a `ScriptableActList` asset. A dialog will prompt for a name and a save folder — the folder defaults to the path configured in Project Settings.
-4. Click **+ New Act** to open the Act Wizard, or **+ Add Act** to pick an existing Act asset.
-5. Select an act row in the list to open its detail panel — add conditions and wire **On Fire** to any method.
+3. With the Actor selected, click **+ New List** to create a `ScriptableActList` asset.
+4. Click **+ New Act** to open the Act Wizard, or drag an existing Act asset into the list.
+5. Select a row to open the Act detail panel — add Condition assets and set `maxClockTime` if the act should lock.
 
 ---
 
-## Evaluation Modes
+## Writing a Custom Act
 
-Toggle `isFuSM` on the Actor component.
+Subclass `Act` and override `PerformAct`. Use the Act Wizard (`Tools > FuzzyBrain > New Act`) or right-click the Project window and choose **Create > FuzzyBrain > Act Script** to generate the boilerplate.
 
-| Mode | Behaviour |
-|---|---|
-| **FSM** (default) | Stops after the first matching act each tick. |
-| **FuSM** | Evaluates all acts and fires every match. |
-
-- Use **FSM** for exclusive states (locomotion, enemy AI).
-- Use **FuSM** for layered reactions (audio + animation + VFX all driven by the same conditions).
-
----
-
-## Logic Operators
-
-| Operator | How |
-|---|---|
-| AND | All conditions on an act must pass (implicit). |
-| NOT | Toggle **Inverted** on any condition asset. |
-| OR | Not directly supported — add a second Act with the alternate conditions instead. |
-
-**Why no OR?** OR breaks the specificity sort. Add two Act rows wired to the same method:
-
+```csharp
+[CreateAssetMenu(menuName = "FuzzyBrain/Acts/PlayAttackAnim")]
+public class PlayAttackAnim : Act
+{
+    public override void PerformAct(ActContext ctx)
+    {
+        var anim = ctx.Get<Animator>();
+        if (anim == null) return;
+        anim.SetTrigger("Attack");
+    }
+}
 ```
-Act [IsGrounded][IsAttacking] → PlayJumpAttack()
-Act [IsGrounded][IsFalling]   → PlayJumpAttack()
-```
+
+Override `OnStart` for one-shot setup that runs once per lock cycle. Override `IsComplete` to keep the Actor locked until a signal arrives (animation end, physics event, etc.). Always set `maxClockTime` on the asset as a safety timeout when overriding `IsComplete`.
 
 ---
 
 ## Writing a Custom Condition
 
-Subclass `Condition<T>` where `T` is the component your condition reads. The component is resolved from a cache built on `Awake` — `GetComponent` is never called in the hot path.
+Subclass `Condition<T>` where `T` is the component the condition reads. The component is resolved from a cache built on `Awake` — `GetComponent` is never called in the hot path. Use the Condition Wizard (`Tools > FuzzyBrain > New Condition`) or right-click the Project window and choose **Create > FuzzyBrain > Condition Script** to generate the boilerplate.
 
 ```csharp
 [CreateAssetMenu(menuName = "FuzzyBrain/Conditions/HasAmmo")]
-public class HasAmmoCondition : Condition<WeaponComponent>
+public class HasAmmo : Condition<WeaponComponent>
 {
     public int minAmmo = 1;
 
@@ -78,30 +68,48 @@ public class HasAmmoCondition : Condition<WeaponComponent>
 }
 ```
 
-Use `Tools > FuzzyBrain > New Condition` to generate this boilerplate, or use the **Quick Condition** tab to generate a field-comparison condition without writing any code.
+Always apply `inverted` before returning — without it the Inspector's invert toggle silently does nothing.
+
+Use the **Quick Condition** tab in the Condition Wizard to generate a field-comparison condition without writing any code.
 
 ---
 
 ## ActContext
 
-Every condition and act receives an `ActContext` — a zero-allocation `readonly struct` built once per tick.
+Every Act and Condition receives an `ActContext` — a zero-allocation `readonly struct` built once per tick.
 
 ```csharp
-// O(1) cached component access — never calls GetComponent at runtime
-Rigidbody2D rb = ctx.Get<Rigidbody2D>();
-
-// Per-tick condition deduplication — each unique condition SO calls Verify() at most once
-bool passed = ctx.Evaluate(someCondition);
+// O(1) cached component lookup — never calls GetComponent at runtime
+var rb = ctx.Get<Rigidbody2D>();
 
 // Actor reference
 ctx.Actor.Die();
+```
+
+`ctx.Get<T>()` returns `null` and logs a warning if the component is not on the Actor. Acts must null-check the result.
+
+---
+
+## Logic Operators
+
+| Operator | How |
+|---|---|
+| AND | All conditions on an act must pass (implicit). |
+| NOT | Toggle `inverted` on any Condition asset. |
+| OR | Not directly supported — add a second Act row wired to the same behaviour instead. |
+
+**Why no OR?** OR breaks the specificity sort. Add two Act rows with the alternate condition sets:
+
+```
+Act [IsGrounded][IsAttacking] → PlayJumpAttack()
+Act [IsGrounded][IsFalling]   → PlayJumpAttack()
 ```
 
 ---
 
 ## IGizmoDrawable
 
-Implement `IGizmoDrawable` on spatial conditions to draw their query volume in the Scene view when the Actor is selected. Grey in edit mode, green when passing, red when failing.
+Implement `IGizmoDrawable` on spatial conditions to visualise their query volume in the Scene view when the Actor is selected. Grey in Edit mode, green when passing, red when failing.
 
 ```csharp
 public class IsGrounded : Condition<Collider2D>, IGizmoDrawable
@@ -117,10 +125,10 @@ public class IsGrounded : Condition<Collider2D>, IGizmoDrawable
 
     public void DrawGizmo(ActContext ctx)
     {
-        Collider2D col = ctx.Get<Collider2D>();
+        var col = ctx.Get<Collider2D>();
         if (col == null) return;
         float len = col.bounds.extents.y + 0.1f;
-        bool hit  = Physics2D.Raycast(col.transform.position, Vector2.down, len, 1 << groundLayer);
+        bool  hit = Physics2D.Raycast(col.transform.position, Vector2.down, len, 1 << groundLayer);
         Gizmos.color = Application.isPlaying ? (hit ? Color.green : Color.red) : Color.grey;
         Gizmos.DrawLine(col.transform.position, col.transform.position + Vector3.down * len);
     }
@@ -133,74 +141,124 @@ public class IsGrounded : Condition<Collider2D>, IGizmoDrawable
 
 | Class | Component | Description |
 |---|---|---|
-| `CanAct` | `Actor` | Passes when `Actor.canAct` is true. Use as a cooldown gate. |
-| `IdleCondition` | `Actor` | Passes when `Actor.isIdle` is true. |
-| `RandomRollCondition` | `Actor` | 1-in-N random chance each evaluation. |
-| `OnGround` | `Collider2D` | Downward raycast to a ground layer. IGizmoDrawable. |
-| `OnSurface` | `Collider2D` | Downward raycast excluding the actor's own layer. IGizmoDrawable. |
-| `AgainstWall` | `Collider2D` | Horizontal raycast left or right. IGizmoDrawable. |
-| `IsTouchingLayer` | `Collider2D` | Contact check against a layer mask. IGizmoDrawable. |
-| `FallingCondition` | `Rigidbody2D` | `linearVelocity.y` below threshold. |
-| `IsStill` | `Rigidbody2D` | Speed magnitude below threshold. |
+| `IdleCondition` | `Actor` | Passes when `Actor.isIdle` is `true`. |
+| `RandomRollCondition` | `Actor` | 1-in-N random roll per evaluation. Default N = 5 (20% chance). |
+| `PreviousActCondition` | `ActHistory` | Passes when the act at a history offset matches an expected Act asset. |
+| `OnGround` | `Collider2D` | Downward raycast to a ground layer. `IGizmoDrawable`. |
+| `OnSurface` | `Collider2D` | Downward raycast excluding the actor's own layer. `IGizmoDrawable`. |
+| `AgainstWall` | `Collider2D` | Horizontal raycast left or right. `IGizmoDrawable`. |
+| `IsTouchingLayer` | `Collider2D` | Contact check against a layer mask. `IGizmoDrawable`. |
+| `FallingCondition` | `Rigidbody2D` | `linearVelocity.y` below threshold (default `-1`). |
+| `IsStill` | `Rigidbody2D` | Speed magnitude below threshold (default `1`). |
+
+All conditions expose an `inverted` field. The four `Collider2D` conditions implement `IGizmoDrawable`.
 
 ---
 
-## Built-in Actor Methods
+## Actor Public API
 
-Safe to wire directly to any Act's `onFire` UnityEvent.
-
-| Method | Effect |
-|---|---|
-| `Die()` | Sets `isAlive = false` and deactivates the GameObject. |
-| `AddIdleTime()` | Accumulates idle time each call. Sets `isIdle = true` once `idleDelay` is exceeded. |
-| `ResetIdle()` | Clears `isIdle` and resets the idle accumulation timer. |
-| `StartResetCanAct(float)` | Starts a cooldown coroutine that restores `canAct` after the given delay. |
-
----
-
-## Act Cooldowns
-
-Enable **Set Can Act** on an Act and add a **CanAct** condition to it. When the act fires, `Actor.canAct` is set to `false` for **Reset Time** seconds — any act including **CanAct** will not fire during that window.
+| Member | Type | Description |
+|---|---|---|
+| `isIdle` | `bool` field | Reset to `false` each tick. Set to `true` by `IdleAct.PerformAct`. |
+| `isAlive` | `bool` field | Set to `false` by `Die()`. Read by external systems to know if the actor is alive. |
+| `CurrentAct` | `Act` property | The act currently locked. `null` when no act is running. |
+| `LastFiredAct` | `Act` property | The act that fired most recently. Used by the FuzzyBrain Window for play-mode highlighting. |
+| `Die()` | method | Sets `isAlive = false` and deactivates the GameObject. Safe to wire to UnityEvents. |
+| `ResetActor()` | method | Resets `isAlive`, `isIdle`, and the current act lock to initial values. |
+| `EnableActor()` | method | Sorts the act list and calls `ResetActor()`. Called automatically on `OnEnable`. |
+| `Refresh()` | method | Rebuilds the component cache and re-sorts the act list. Call after modifying acts or components at runtime. |
+| `SetActList(list)` | method | Assigns a new act list and calls `Refresh()`. Does not reset actor state. |
 
 ---
 
 ## Idle Detection
 
-Wire `Actor.AddIdleTime()` to the `onFire` of a zero-condition fallback act. Wire `Actor.ResetIdle()` (or enable **Reset Idle**) on any active acts. Add an `IdleCondition` to acts that should trigger after prolonged inactivity. Set `idleDelay` on the Actor to control the threshold in seconds.
+`Actor.isIdle` is reset to `false` at the start of every tick. The built-in `IdleAct` sets `ctx.Actor.isIdle = true` in its `PerformAct`. Because it carries zero conditions it sorts last, firing only when every other act fails.
+
+Add `IdleAct` with zero conditions as the fallback row. Add an `IdleCondition` to acts that should respond to idleness — they sort above `IdleAct` and fire on the tick after `isIdle` first becomes `true`.
+
+```
+PlayIdleAnim  [IdleCondition]   ← fires the tick after isIdle becomes true
+Idle          (0 conditions)    ← sets isIdle = true
+```
+
+Subclass `IdleAct` to attach extra behaviour; call `base.PerformAct(ctx)` to preserve `isIdle` management.
 
 ---
 
-## FuzzyBrainManager (optional)
+## Act Cooldowns
 
-Add a single **FuzzyBrainManager** component to the scene to distribute actor evaluations across staggered time buckets. Actors register and unregister automatically.
+When `OnStart` and `PerformAct` fire and `IsComplete` returns `false`, the Actor locks to that act — no other acts are evaluated until it unlocks. `IsComplete` is polled each tick; `maxClockTime` forces an unlock if it is exceeded.
+
+**Fire-and-forget** — override only `PerformAct`. `IsComplete` returns `true` immediately; no lock is set.
+
+**Fixed-duration lock** — leave `IsComplete` at its default; set `maxClockTime` on the asset. The lock lasts exactly that many seconds.
+
+**Signal-driven lock** — override `IsComplete` to check an animation state, collision, or any game condition. Always set `maxClockTime` as a safety timeout.
+
+```csharp
+public override bool IsComplete(ActContext ctx)
+{
+    var anim = ctx.Get<Animator>();
+    return anim == null || !anim.GetCurrentAnimatorStateInfo(0).IsName("Attack");
+}
+// Set maxClockTime: 2.0 on the asset — forces unlock if the animator gets stuck.
+```
+
+The lock state lives on the `Actor` and `ActClock` — multiple actors sharing the same `Act` asset each have independent lock state.
+
+---
+
+## Combo Sequences
+
+Add an **ActHistory** component to the Actor and use **PreviousActCondition** assets to require an exact act sequence. No custom code needed.
+
+`ActHistory` records each act when it unlocks. `PreviousActCondition.historyOffset = 0` checks the most recent completed act; `1` checks the one before that.
+
+```
+FinisherAttack  [IsPressingFinisher, PrevAct=Heavy@0, PrevAct=Light@1]   maxClockTime: 1.2
+HeavyAttack     [IsPressingHeavy, PrevAct=Light@0]                        maxClockTime: 0.8
+LightAttack     [IsPressingLight]                                          maxClockTime: 0.5
+Idle            []
+```
+
+The specificity sort guarantees the finisher (most conditions) is evaluated first automatically.
+
+---
+
+## FuzzyBrainManager
+
+Add a single **FuzzyBrainManager** component to the scene to distribute actor evaluations across staggered time buckets. All Actors register and unregister automatically via `OnEnable`/`OnDisable`.
+
+If no manager is present when an Actor enables, one is created automatically with default settings.
 
 | Field | Default | Description |
 |---|---|---|
-| `bucketCount` | `4` | Number of stagger groups. |
-| `tickInterval` | `0.1` | Seconds between full evaluations per actor. |
+| `bucketCount` | `4` | Number of stagger groups. Higher values spread cost more evenly across frames. |
+| `tickInterval` | `0.1` | Seconds between full evaluations per actor. `0` evaluates every frame. |
 
-Without a manager, each Actor self-ticks every `Update()` frame. Both modes produce identical behaviour — the manager only changes timing and batching.
+Set `bucketCount` to match the expected actor count — a good rule of thumb is one bucket per 10–20 actors. Manual registration: `FuzzyBrainManager.Instance?.Register(actor)` / `Unregister(actor)`.
 
 ---
 
 ## Runtime List Mutation
 
-Swap an actor's list at runtime with `SetActList()`, or mutate the existing list with `Add()` / `Remove()` and call `Refresh()` to re-sort and rebuild the component cache without resetting actor state.
+Swap an actor's list with `SetActList()`, or mutate the existing list and call `Refresh()` to re-sort and rebuild the component cache without resetting actor state.
 
-Use `Clone()` to give each actor a private in-memory copy of a shared list asset so mutations don't affect other actors:
+Use `Clone()` to give each actor a private in-memory copy of a shared list asset:
 
 ```csharp
 var brain = sharedTemplate.Clone();
 actor.SetActList(brain);
 
-brain.Add(newActAsset);
-actor.Refresh();
+brain.Add(newActAsset);    // marks dirty
+actor.Refresh();           // re-sorts and rebuilds cache
 
-brain.Remove(obsoleteActAsset);
+brain.Remove(oldActAsset); // marks dirty
 actor.Refresh();
 ```
 
-Call `ResetActor()` explicitly alongside any of the above if a clean state is also needed.
+Call `ResetActor()` alongside any of the above if a clean actor state is also needed.
 
 ---
 
@@ -208,13 +266,18 @@ Call `ResetActor()` explicitly alongside any of the above if a clean state is al
 
 | Tool | Open via |
 |---|---|
-| **FuzzyBrain Window** | `Tools > FuzzyBrain > Editor` or the button on the Actor Inspector |
+| **FuzzyBrain Window** | `Tools > FuzzyBrain > Editor` |
 | **Act Wizard** | `Tools > FuzzyBrain > New Act` or **+ New Act** in the window |
 | **Condition Wizard** | `Tools > FuzzyBrain > New Condition` or the button in the Act detail panel |
 | **Project Settings** | `Edit > Project Settings > FuzzyBrain` |
+| **Create Actor** | Right-click Hierarchy → **FuzzyBrain > Actor** |
+| **Act Script template** | Right-click Project window → **Create > FuzzyBrain > Act Script** |
+| **Condition Script template** | Right-click Project window → **Create > FuzzyBrain > Condition Script** |
 
-The FuzzyBrain Window re-evaluates the Hierarchy selection whenever it gains focus, so it always reflects the correct Actor even if you clicked away without changing selection.
+**Act Script / Condition Script** — writes a script to the folder you right-clicked using the same template as the wizard Generate Script tab. The namespace is read from Project Settings. For Condition Script, a small modal asks for the class name and component type before writing.
 
-**+ New List** opens a dialog where you can set both the asset name and the save folder. The folder field pre-fills from Project Settings and supports a `…` browse button to pick any folder inside the project.
+**FuzzyBrain Window** — select an Actor in the Hierarchy to load its list. The **Validate Act List** button runs a dry-run validation pass in Edit Mode: checks for missing components and calls `PerformAct` with a null-safe context.
 
-The Condition Wizard has three tabs: **Generate Script** (boilerplate `Condition<T>` subclass), **Create Asset** (instantiate a compiled condition type), and **Quick Condition** (generate a field-comparison condition with no code).
+**Act Wizard** — two tabs: **Generate Script** (Act subclass boilerplate) and **Create Asset** (instantiate a compiled type, optionally adding it directly to the open list).
+
+**Condition Wizard** — three tabs: **Generate Script** (`Condition<T>` boilerplate), **Create Asset** (instantiate a compiled type), and **Quick Condition** (generate a field-comparison condition with no code).
