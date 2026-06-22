@@ -29,9 +29,7 @@ namespace FuzzyBrain
         [Header("Actor State")]
         public bool isIdle;
         public bool isAlive = true;
-
-        [Header("Current Act")]
-        [SerializeField, ReadOnly]
+        
         private Act _currentAct;
 
         private Dictionary<Type, Component> _componentCache;

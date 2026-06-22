@@ -622,19 +622,6 @@ namespace FuzzyBrain.Editor
             newList.name = listName;
             AssetDatabase.CreateAsset(newList, assetPath);
 
-            // Inject the built-in idle act so every new list starts with a resting state.
-            var idleAct = AssetDatabase.LoadAssetAtPath<Act>(ActListPostprocessor.IdleActPath);
-            if (idleAct != null)
-            {
-                newList.list.Add(idleAct);
-                EditorUtility.SetDirty(newList);
-            }
-            else
-            {
-                Debug.LogWarning(
-                    $"[FuzzyBrain] Could not inject idle act — Idle.asset not found at '{ActListPostprocessor.IdleActPath}'.");
-            }
-
             AssetDatabase.SaveAssets();
 
             _actorSO.Update();

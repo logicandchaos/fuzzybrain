@@ -33,16 +33,23 @@ public class CharacterAbilities : MonoBehaviour
     [Tooltip("Speed of the spawned projectile in units per second.")]
     [SerializeField] private float projectileSpeed = 20f;
 
+    [SerializeField] private Transform gun;
+
+    [Header("Ground Detection")]
+    [SerializeField] private LayerMask _groundMask = ~0; // default: everything; assign Ground layer in Inspector
+
+
     // ── Public state ─────────────────────────────────────────────────────────────
 
-    /// <summary>True when the character is touching the ground layer.</summary>
-    public bool IsGrounded { get; private set; }
+    /// <summary>True when the character is touching the ground layer.</summary>    
+    [field: SerializeField, FuzzyBrain.ReadOnly] public bool IsGrounded { get; private set; }
 
     /// <summary>True when a double jump is available (reset on landing).</summary>
-    public bool CanDoubleJump { get; private set; }
+    [SerializeField, FuzzyBrain.ReadOnly] private bool _canDoubleJump;
+    public bool CanDoubleJump => _canDoubleJump;
 
     /// <summary>Last horizontal direction the character moved in. 1 = right, -1 = left.</summary>
-    public float FacingDirection { get; private set; } = 1f;
+    [field: SerializeField, FuzzyBrain.ReadOnly] public float FacingDirection { get; private set; } = 1f;
 
     // ── Private state ─────────────────────────────────────────────────────────────
 
@@ -89,10 +96,11 @@ public class CharacterAbilities : MonoBehaviour
     /// </summary>
     public void DoubleJump()
     {
-        if (IsGrounded || !CanDoubleJump) return;
+        Debug.Log($"DoubleJump called — IsGrounded: {IsGrounded}, CanDoubleJump: {_canDoubleJump}");
+        if (IsGrounded || !_canDoubleJump) return;
 
         _rigidbody.linearVelocity = new Vector2(_rigidbody.linearVelocity.x, doubleJumpForce);
-        CanDoubleJump = false;
+        _canDoubleJump = false;
     }
 
     /// <summary>
@@ -105,7 +113,18 @@ public class CharacterAbilities : MonoBehaviour
     }
 
     /// <summary>
-    /// Instantiates the projectile prefab at the spawn point and launches it in the facing direction.
+    /// Aims the gun at an angle relative to the character's current facing direction.
+    /// Positive angles rotate upward from the facing axis; negative rotate downward.
+    /// </summary>
+    public void Aim(float angle)
+    {
+        if (gun == null) return;
+        float worldAngle = FacingDirection > 0f ? angle : 180f - angle;
+        gun.rotation = Quaternion.Euler(0f, 0f, worldAngle);
+    }
+
+    /// <summary>
+    /// Instantiates the projectile prefab at the spawn point and launches it in the direction of gun.
     /// Has no effect if no projectile prefab is assigned. Use FuzzyBrain act cooldowns to control fire rate.
     /// </summary>
     public void Shoot()
@@ -113,22 +132,29 @@ public class CharacterAbilities : MonoBehaviour
         if (projectilePrefab == null) return;
 
         Transform spawnPoint = projectileSpawnPoint != null ? projectileSpawnPoint : transform;
-        GameObject projectile = Instantiate(projectilePrefab, spawnPoint.position, Quaternion.identity);
+        GameObject projectile = Instantiate(projectilePrefab, spawnPoint.position, spawnPoint.rotation);
 
         if (projectile.TryGetComponent(out Rigidbody2D projectileRb))
-            projectileRb.linearVelocity = new Vector2(FacingDirection * projectileSpeed, 0f);
+            projectileRb.linearVelocity = spawnPoint.right * projectileSpeed;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
 
-    private void RefreshGroundState()    {
+    private void RefreshGroundState()
+    {
+        if (_rigidbody.linearVelocity.y > 0.1f)
+        {
+            IsGrounded = false;
+            return;
+        }
+
         if (!TryGetComponent(out Collider2D col)) return;
 
         float rayLength = col.bounds.extents.y + 0.1f;
-        bool grounded = Physics2D.Raycast(col.bounds.center, Vector2.down, rayLength);
+        bool grounded = Physics2D.Raycast(col.bounds.center, Vector2.down, rayLength, _groundMask);
 
         if (!IsGrounded && grounded)
-            CanDoubleJump = true;
+            _canDoubleJump = true;
 
         IsGrounded = grounded;
     }

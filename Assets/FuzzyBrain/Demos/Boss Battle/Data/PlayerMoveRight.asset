@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82e999fc63bcdcf43a021bf48e973328, type: 3}
+  m_Name: PlayerMoveRight
+  m_EditorClassIdentifier: 
+  conditions:
+  - {fileID: 11400000, guid: c9910cb1b91aa6446ae7979d74d93d29, type: 2}
+  - {fileID: 11400000, guid: c522e5d8aeb0d8e4abee1f07bce5931f, type: 2}
+  - {fileID: 11400000, guid: 89246209a07e47845b2a4b855f2737b2, type: 2}
+  maxClockTime: 0
+  moveDirection: 1
+  aimAngle: 0
