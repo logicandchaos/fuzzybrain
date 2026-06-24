@@ -8,6 +8,10 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class CharacterAbilities : MonoBehaviour
 {
+    [Header("Health")]
+    [Tooltip("Health in HitPoints")]
+    public int health = 100;
+
     [Header("Run")]
     [Tooltip("Horizontal movement speed in units per second.")]
     [SerializeField] private float moveSpeed = 10f;
@@ -20,8 +24,9 @@ public class CharacterAbilities : MonoBehaviour
     [SerializeField] private float doubleJumpForce = 15f;
 
     [Header("Dash")]
-    [Tooltip("Impulse force applied in the facing direction when dashing.")]
-    [SerializeField] private float dashForce = 25f;
+    [Tooltip("Horizontal speed in units per second applied when dashing. Duration is controlled by maxLockTime on the Dash act asset.")]
+    [SerializeField] private float dashSpeed = 25f;
+    [SerializeField] private float dashDuration = 0.2f;
 
     [Header("Shoot")]
     [Tooltip("Prefab instantiated when shooting. Must have a Rigidbody2D.")]
@@ -96,7 +101,6 @@ public class CharacterAbilities : MonoBehaviour
     /// </summary>
     public void DoubleJump()
     {
-        Debug.Log($"DoubleJump called — IsGrounded: {IsGrounded}, CanDoubleJump: {_canDoubleJump}");
         if (IsGrounded || !_canDoubleJump) return;
 
         _rigidbody.linearVelocity = new Vector2(_rigidbody.linearVelocity.x, doubleJumpForce);
@@ -109,7 +113,14 @@ public class CharacterAbilities : MonoBehaviour
     /// </summary>
     public void Dash()
     {
-        _rigidbody.AddForce(new Vector2(FacingDirection * dashForce, 0f), ForceMode2D.Impulse);
+        _rigidbody.linearVelocity = new Vector2(FacingDirection * dashSpeed, _rigidbody.linearVelocity.y);
+        CancelInvoke(nameof(StopDash)); // cancel any previous dash that was interrupted
+        Invoke(nameof(StopDash), dashDuration);
+    }
+
+    private void StopDash()
+    {
+        _rigidbody.linearVelocityX = 0f;
     }
 
     /// <summary>

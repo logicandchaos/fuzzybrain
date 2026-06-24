@@ -29,12 +29,13 @@ namespace FuzzyBrain
         [Header("Actor State")]
         public bool isIdle;
         public bool isAlive = true;
-        
+
         private Act _currentAct;
 
         private Dictionary<Type, Component> _componentCache;
         private Dictionary<Condition, bool> _conditionCache;
-        private ActClock   _actClock;
+        private Dictionary<Act, float> _cooldownEndTimes;
+        private float _lockStartTime;
         private ActHistory _actHistory;
 
         /// <summary>
@@ -55,8 +56,8 @@ namespace FuzzyBrain
         {
             _componentCache = ActContext.BuildComponentCache(this);
             _conditionCache = new Dictionary<Condition, bool>();
-            _actClock       = GetComponent<ActClock>() ?? gameObject.AddComponent<ActClock>();
-            _actHistory     = GetComponent<ActHistory>();
+            _cooldownEndTimes = new Dictionary<Act, float>();
+            _actHistory = GetComponent<ActHistory>();
         }
 
         private void OnEnable()
@@ -108,8 +109,8 @@ namespace FuzzyBrain
             // ── Locked phase ──────────────────────────────────────────────────────
             if (_currentAct != null)
             {
-                bool done    = _currentAct.IsComplete(ctx);
-                bool timeout = _actClock.HasTimedOut(_currentAct.maxClockTime);
+                bool done = _currentAct.IsComplete(ctx);
+                bool timeout = _currentAct.maxLockTime > 0f && Time.time >= _lockStartTime + _currentAct.maxLockTime;
 
                 if (!done && !timeout) return;
 
@@ -125,17 +126,23 @@ namespace FuzzyBrain
             {
                 if (act == null) continue;
 
+                if (act.cooldown > 0f && _cooldownEndTimes.TryGetValue(act, out float readyAt) && Time.time < readyAt)
+                    continue;
+
                 if (!act.CheckConditions(ctx)) continue;
 
                 act.OnStart(ctx);
                 act.PerformAct(ctx);
                 LastFiredAct = act;
 
+                if (act.cooldown > 0f)
+                    _cooldownEndTimes[act] = Time.time + act.cooldown;
+
                 // Lock only if the act declares it is not yet complete.
                 if (!act.IsComplete(ctx))
                 {
                     _currentAct = act;
-                    _actClock.RecordStart();
+                    _lockStartTime = Time.time;
                 }
 
                 return;
@@ -161,7 +168,7 @@ namespace FuzzyBrain
         public void Refresh()
         {
             _componentCache = ActContext.BuildComponentCache(this);
-            _actHistory     = GetComponent<ActHistory>();
+            _actHistory = GetComponent<ActHistory>();
 
             if (acts != null)
                 acts.SortIfDirty();
@@ -181,9 +188,11 @@ namespace FuzzyBrain
         /// <summary>Resets engine state to initial values.</summary>
         public void ResetActor()
         {
-            isAlive     = true;
-            isIdle      = false;
+            isAlive = true;
+            isIdle = false;
             _currentAct = null;
+            _lockStartTime = 0f;
+            _cooldownEndTimes.Clear();
         }
 
         // ── Public state methods ──────────────────────────────────────────────────

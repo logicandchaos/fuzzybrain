@@ -9,8 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0cce6adff2600e24e842da92236694da, type: 3}
-  m_Name: NotJumpButtonInputCondition
+  m_Script: {fileID: 11500000, guid: fbca419736b164e4a8ba7c1f4a05e92c, type: 3}
+  m_Name: PlayerStopDash
   m_EditorClassIdentifier: 
-  inverted: 1
-  actionName: Jump
+  conditions: []
+  maxLockTime: 0
+  cooldown: 0

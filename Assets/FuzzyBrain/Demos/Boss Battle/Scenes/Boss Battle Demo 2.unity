@@ -376,13 +376,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 001733f3684472940b9f5e37625c314d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 10
-  jumpForce: 18
-  doubleJumpForce: 15
-  dashForce: 25
+  health: 100
+  moveSpeed: 12
+  jumpForce: 20
+  doubleJumpForce: 20
+  dashSpeed: 60
+  dashDuration: 0.25
   projectilePrefab: {fileID: 1482430756242530040, guid: 9cccae60ab49fa34b8d608897c03da71, type: 3}
   projectileSpawnPoint: {fileID: 1117410580}
-  projectileSpeed: 20
+  projectileSpeed: 50
   gun: {fileID: 19111165}
   _groundMask:
     serializedVersion: 2
@@ -582,7 +584,7 @@ GameObject:
   m_Component:
   - component: {fileID: 673268452}
   - component: {fileID: 673268453}
-  m_Layer: 9
+  m_Layer: 10
   m_Name: Square
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1148,7 +1150,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1143292641}
   - component: {fileID: 1143292642}
-  m_Layer: 9
+  m_Layer: 10
   m_Name: Square
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1327,7 +1329,7 @@ GameObject:
   - component: {fileID: 1451376143}
   - component: {fileID: 1451376142}
   - component: {fileID: 1451376147}
-  m_Layer: 9
+  m_Layer: 10
   m_Name: Ememy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1465,10 +1467,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 001733f3684472940b9f5e37625c314d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  health: 100
   moveSpeed: 10
   jumpForce: 18
   doubleJumpForce: 15
-  dashForce: 25
+  dashSpeed: 25
+  dashDuration: 0.2
   projectilePrefab: {fileID: 5554136663123898852, guid: 6fe62abb610284a46b8a068f6fc20b86, type: 3}
   projectileSpawnPoint: {fileID: 1143292641}
   projectileSpeed: 20
@@ -1909,7 +1913,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1802705181}
   - component: {fileID: 1802705182}
-  m_Layer: 9
+  m_Layer: 10
   m_Name: Circle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2016,8 +2020,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f21155b3b4d8a0d4fac72750dcf416b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bucketCount: 2
-  tickInterval: 0.5
+  bucketCount: 1
+  tickInterval: 0
 --- !u!4 &1907502181
 Transform:
   m_ObjectHideFlags: 0

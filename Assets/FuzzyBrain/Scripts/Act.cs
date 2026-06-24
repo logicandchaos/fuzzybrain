@@ -23,7 +23,11 @@ namespace FuzzyBrain
 
         [Tooltip("Maximum time in seconds the ActClock is allowed to run before forcing unlock. " +
                  "0 = no timeout. Acts that override IsComplete should always set this as a safety net.")]
-        public float maxClockTime;
+        public float maxLockTime;
+
+        [Tooltip("Minimum time in seconds before this act can fire again after it fires. 0 = no cooldown.")]
+        public float cooldown;
+
 
         /// <summary>
         /// Checks all conditions via the per-tick ActContext cache.
@@ -52,7 +56,7 @@ namespace FuzzyBrain
         /// Override to keep the actor locked until custom completion logic is satisfied.
         /// Always set maxClockTime when overriding to avoid permanent locks.
         /// </summary>
-        public virtual bool IsComplete(ActContext ctx) => true;
+        public virtual bool IsComplete(ActContext ctx) => maxLockTime == 0f;
 
         /// <summary>
         /// Implement the behaviour this act performs when all conditions pass.

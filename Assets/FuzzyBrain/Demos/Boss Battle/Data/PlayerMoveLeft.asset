@@ -16,6 +16,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9fa4c4092122a0f46bef89583d3dfcd0, type: 2}
   - {fileID: 11400000, guid: 89246209a07e47845b2a4b855f2737b2, type: 2}
   - {fileID: 11400000, guid: c522e5d8aeb0d8e4abee1f07bce5931f, type: 2}
-  maxClockTime: 0
+  - {fileID: 11400000, guid: 713d9483e1e66664bb3b018594d1436a, type: 2}
+  maxLockTime: 0
+  cooldown: 0.05
   moveDirection: -1
   aimAngle: 0

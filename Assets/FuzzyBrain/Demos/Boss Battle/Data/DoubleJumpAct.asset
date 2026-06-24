@@ -10,10 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 190cef07313d1e3479d97d4a2d90efa8, type: 3}
-  m_Name: PlayerDoubleJumpAct
+  m_Name: DoubleJumpAct
   m_EditorClassIdentifier: 
   conditions:
-  - {fileID: 11400000, guid: 2f54512b77a9f624fae8b3d47418ac8f, type: 2}
   - {fileID: 11400000, guid: d40dfc63b8c47bb4a9907d92e7cb4564, type: 2}
+  - {fileID: 11400000, guid: 6c4ce55e3e9650449ba749c96a8fcb35, type: 2}
   - {fileID: 11400000, guid: 37b07c01e154fc34cb05410ad8c02b86, type: 2}
-  maxClockTime: 0
+  maxLockTime: 0
+  cooldown: 0

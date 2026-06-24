@@ -15,6 +15,8 @@ MonoBehaviour:
   conditions:
   - {fileID: 11400000, guid: 9fa4c4092122a0f46bef89583d3dfcd0, type: 2}
   - {fileID: 11400000, guid: 90b2ec6086ac89243a78f8b285278e6e, type: 2}
-  maxClockTime: 0
+  - {fileID: 11400000, guid: 713d9483e1e66664bb3b018594d1436a, type: 2}
+  maxLockTime: 0
+  cooldown: 0.05
   moveDirection: -1
   aimAngle: 45

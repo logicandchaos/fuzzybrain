@@ -1,11 +1,10 @@
-using FuzzyBrain;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace BossBattleDemo
+namespace FuzzyBrain
 {
-    [CreateAssetMenu(fileName = "ButtonInputCondition", menuName = "FuzzyBrain/Conditions/ButtonInputCondition")]
-    public class ButtonInputCondition : Condition<PlayerInput>
+    [CreateAssetMenu(fileName = "ButtonPressedCondition", menuName = "FuzzyBrain/Conditions/ButtonPressedCondition")]
+    public class ButtonPressedCondition : Condition<PlayerInput>
     {
         [Tooltip("Name of the button action in the Input Action Asset.")]
         [SerializeField] private string actionName = "Jump";

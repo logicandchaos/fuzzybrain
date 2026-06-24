@@ -9,14 +9,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 82e999fc63bcdcf43a021bf48e973328, type: 3}
-  m_Name: PlayerMoveLeftAimDown
+  m_Script: {fileID: 11500000, guid: fbca419736b164e4a8ba7c1f4a05e92c, type: 3}
+  m_Name: PlayerStop
   m_EditorClassIdentifier: 
   conditions:
-  - {fileID: 11400000, guid: 9fa4c4092122a0f46bef89583d3dfcd0, type: 2}
-  - {fileID: 11400000, guid: 62f17a1d3fd6142469a1d8afec99882d, type: 2}
+  - {fileID: 11400000, guid: 55268f97ce7ae3448bac74a47ff67b1a, type: 2}
+  - {fileID: 11400000, guid: 69eca042115fe7446b36ff71b827dd16, type: 2}
+  - {fileID: 11400000, guid: 73bc193acc042a64b9586311fff96230, type: 2}
   - {fileID: 11400000, guid: 713d9483e1e66664bb3b018594d1436a, type: 2}
   maxLockTime: 0
-  cooldown: 0.05
-  moveDirection: -1
-  aimAngle: -45
+  cooldown: 0
