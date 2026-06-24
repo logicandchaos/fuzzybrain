@@ -262,9 +262,13 @@ namespace FuzzyBrain.Editor
             var leftPane = new VisualElement();
             leftPane.style.flexDirection = FlexDirection.Column;
 
+            // Scrollable list area — grows to fill available vertical space
+            var leftScroll = new ScrollView(ScrollViewMode.Vertical);
+            leftScroll.style.flexGrow = 1f;
+
             _listContainer = new IMGUIContainer(DrawReorderableList);
-            _listContainer.style.flexGrow = 1f;
-            leftPane.Add(_listContainer);
+            leftScroll.Add(_listContainer);
+            leftPane.Add(leftScroll);
 
             // Sort button
             var sortBtn = new Button(SortListByConditionCount) { text = "Sort by Conditions ↓" };
@@ -274,13 +278,21 @@ namespace FuzzyBrain.Editor
             sortBtn.style.marginBottom = 2f;
             leftPane.Add(sortBtn);
 
-            // New Act — opens the wizard
-            var newActBtn = new Button(() => ActWizard.Open()) { text = "+ New Act" };
-            newActBtn.style.marginTop    = 2f;
-            newActBtn.style.marginBottom = 2f;
-            newActBtn.style.marginLeft   = 4f;
-            newActBtn.style.marginRight  = 4f;
-            leftPane.Add(newActBtn);
+            // Act Wizard — opens the act wizard
+            var actWizardBtn = new Button(() => ActWizard.Open()) { text = "Act Wizard" };
+            actWizardBtn.style.marginTop    = 2f;
+            actWizardBtn.style.marginBottom = 2f;
+            actWizardBtn.style.marginLeft   = 4f;
+            actWizardBtn.style.marginRight  = 4f;
+            leftPane.Add(actWizardBtn);
+
+            // Condition Wizard — opens the condition wizard
+            var condWizardBtn = new Button(() => ConditionWizard.Open()) { text = "Condition Wizard" };
+            condWizardBtn.style.marginTop    = 2f;
+            condWizardBtn.style.marginBottom = 2f;
+            condWizardBtn.style.marginLeft   = 4f;
+            condWizardBtn.style.marginRight  = 4f;
+            leftPane.Add(condWizardBtn);
 
             // Validate act list
             var validateBtn = new Button(ValidateActList) { text = "Validate Act List" };
@@ -488,7 +500,25 @@ namespace FuzzyBrain.Editor
             AddDivider();
 
             // Flags
-            _detailContent.Add(new PropertyField(actSO.FindProperty("maxClockTime"), "Max Clock Time (s)"));
+            _detailContent.Add(new PropertyField(actSO.FindProperty("maxLockTime"), "Max Lock Time (s)"));
+            _detailContent.Add(new PropertyField(actSO.FindProperty("cooldown"), "Cooldown (s)"));
+
+            // Subclass-specific fields (surfaces any field not in the base Act class automatically)
+            var customFields = new IMGUIContainer(() =>
+            {
+                if (_actSO == null) return;
+                _actSO.Update();
+                var skip = new HashSet<string> { "m_Script", "conditions", "maxLockTime", "cooldown" };
+                SerializedProperty prop = _actSO.GetIterator();
+                prop.NextVisible(true);
+                while (prop.NextVisible(false))
+                {
+                    if (skip.Contains(prop.name)) continue;
+                    EditorGUILayout.PropertyField(prop, true);
+                }
+                _actSO.ApplyModifiedProperties();
+            });
+            _detailContent.Add(customFields);
 
             AddDivider();
 

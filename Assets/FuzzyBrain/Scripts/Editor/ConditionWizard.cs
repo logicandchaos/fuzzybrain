@@ -78,7 +78,7 @@ namespace FuzzyBrain.Editor
 
         // ── Menu entry ────────────────────────────────────────────────────────────
 
-        [MenuItem("Tools/FuzzyBrain/New Condition", priority = 11)]
+        [MenuItem("Tools/FuzzyBrain/Condition Wizard", priority = 11)]
         public static void Open() => Open(0);
 
         /// <summary>Opens the wizard on the given tab index.</summary>
@@ -115,6 +115,13 @@ namespace FuzzyBrain.Editor
 
         private void OnDestroy()
         {
+            var settings = FuzzyBrainSettings.GetOrCreate();
+            settings.conditionScriptsFolder = _scriptFolder;
+            settings.conditionAssetsFolder  = _assetFolder;
+            settings.defaultNamespace       = _namespace;
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+
             if (_previewEditor   != null) DestroyImmediate(_previewEditor);
             if (_previewInstance != null) DestroyImmediate(_previewInstance);
         }
@@ -180,10 +187,14 @@ namespace FuzzyBrain.Editor
         private void OnGUI()
         {
             // After a domain reload the window survives but _previewEditor may wrap a
-            // ScriptableObject whose script Unity now considers missing. Check by probing
-            // the editor type — a GenericInspector indicates a missing/unresolved script.
-            if (_previewEditor != null &&
-                _previewEditor.GetType().Name == "GenericInspector")
+            // ScriptableObject whose script Unity now considers missing. Detect this by
+            // checking whether the MonoScript reference is null — valid in-memory instances
+            // always have a resolvable script, while post-reload missing-script objects do not.
+            // NOTE: do NOT check editor type name ("GenericInspector") because that name is
+            // also used for types with no custom editor, which would destroy valid previews
+            // every frame and discard all unsaved property edits.
+            if (_previewEditor != null && _previewInstance != null &&
+                MonoScript.FromScriptableObject(_previewInstance) == null)
             {
                 DestroyImmediate(_previewEditor);
                 _previewEditor   = null;
@@ -277,6 +288,11 @@ namespace FuzzyBrain.Editor
             Type   componentType = _componentTypes[_componentIndex];
             string typeName      = componentType.Name;
 
+            string compNs    = componentType.Namespace;
+            string compUsing = (!string.IsNullOrEmpty(compNs) && compNs != "UnityEngine")
+                ? $"using {compNs};\n"
+                : string.Empty;
+
             bool   hasNamespace = !string.IsNullOrWhiteSpace(_namespace);
             string indent       = hasNamespace ? "    " : string.Empty;
 
@@ -293,8 +309,8 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
 {indent}}}";
 
             string template = hasNamespace
-                ? $"using UnityEngine;\nusing FuzzyBrain;\n\nnamespace {_namespace}\n{{\n{classBody}\n}}\n"
-                : $"using UnityEngine;\nusing FuzzyBrain;\n\n{classBody}\n";
+                ? $"using UnityEngine;\nusing FuzzyBrain;\n{compUsing}\nnamespace {_namespace}\n{{\n{classBody}\n}}\n"
+                : $"using UnityEngine;\nusing FuzzyBrain;\n{compUsing}\n{classBody}\n";
             if (!Directory.Exists(_scriptFolder))
                 Directory.CreateDirectory(_scriptFolder);
 
@@ -373,7 +389,9 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
 
                 try
                 {
+                    _previewEditor.serializedObject.Update();
                     _previewEditor.OnInspectorGUI();
+                    _previewEditor.serializedObject.ApplyModifiedProperties();
                 }
                 catch (Exception)
                 {
@@ -429,6 +447,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
             string assetPath = AssetDatabase.GenerateUniqueAssetPath(
                 Path.Combine(_assetFolder, _assetName + ".asset"));
 
+            _previewEditor?.serializedObject?.ApplyModifiedProperties();
             AssetDatabase.CreateAsset(_previewInstance, assetPath);
             AssetDatabase.SaveAssets();
             EditorGUIUtility.PingObject(_previewInstance);
@@ -533,10 +552,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
         private string DrawLiteralField(Type t)
         {
             if (t == typeof(bool))
-            {
-                _quickLiteralBool = EditorGUILayout.Toggle("Value", _quickLiteralBool);
-                return _quickLiteralBool ? "true" : "false";
-            }
+                return "true";
             if (t == typeof(int))
             {
                 if (GUI.GetNameOfFocusedControl() == LiteralIntControlName)
@@ -560,7 +576,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
 
         private string GetCurrentLiteral(Type t)
         {
-            if (t == typeof(bool))                        return _quickLiteralBool   ? "true" : "false";
+            if (t == typeof(bool))                        return "true";
             if (t == typeof(int))                         return _quickLiteralInt.ToString();
             if (t == typeof(float) || t == typeof(double)) return $"{_quickLiteralFloat}f";
             return $"\"{_quickLiteralString}\"";

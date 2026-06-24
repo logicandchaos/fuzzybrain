@@ -23,6 +23,28 @@ namespace FuzzyBrain
         [SerializeField, Min(0f), Tooltip("Seconds between full condition evaluations per actor. Set to 0 to evaluate every frame.")]
         private float tickInterval = 0.1f;
 
+#if UNITY_EDITOR
+        [SerializeField, Tooltip("Enable act logging to the FuzzyBrain Log window (Editor only).")]
+        private bool _enableActLogging = false;
+
+        /// <summary>Gets or sets act logging. Fires OnActLoggingChanged so the FuzzyBrain Log window stays in sync.</summary>
+        public bool EnableActLogging
+        {
+            get => _enableActLogging;
+            set
+            {
+                _enableActLogging = value;
+                OnActLoggingChanged?.Invoke(value);
+            }
+        }
+
+        /// <summary>Fires when _enableActLogging changes. FuzzyBrainLog subscribes to keep IsRecording in sync.</summary>
+        public static System.Action<bool> OnActLoggingChanged;
+
+        /// <summary>Fires each time an actor ticks. FuzzyBrainLog subscribes to record entries.</summary>
+        public static System.Action<string, string> OnActRecorded;
+#endif
+
         private List<Actor>[] _buckets;
         private float[] _bucketNextTick;
         private int _registrationCounter;
@@ -40,6 +62,9 @@ namespace FuzzyBrain
 
             Instance = this;
             InitBuckets();
+#if UNITY_EDITOR
+            OnActLoggingChanged?.Invoke(_enableActLogging);
+#endif
         }
 
         private void OnDestroy()
@@ -117,6 +142,9 @@ namespace FuzzyBrain
                     continue;
                 }
                 actor.ActorUpdate();
+#if UNITY_EDITOR
+                OnActRecorded?.Invoke(actor.name, actor.LastFiredAct?.name ?? "(none)");
+#endif
             }
         }
     }

@@ -43,7 +43,7 @@ namespace FuzzyBrain.Editor
 
         // ── Menu entry ────────────────────────────────────────────────────────────
 
-        [MenuItem("Tools/FuzzyBrain/New Act", priority = 12)]
+        [MenuItem("Tools/FuzzyBrain/Act Wizard", priority = 12)]
         public static void Open() => Open(0);
 
         /// <summary>Opens the wizard on the given tab index.</summary>
@@ -72,6 +72,13 @@ namespace FuzzyBrain.Editor
 
         private void OnDestroy()
         {
+            var settings = FuzzyBrainSettings.GetOrCreate();
+            settings.actScriptsFolder = _scriptFolder;
+            settings.actAssetsFolder  = _assetFolder;
+            settings.defaultNamespace = _namespace;
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+
             if (_previewEditor   != null) DestroyImmediate(_previewEditor);
             if (_previewInstance != null) DestroyImmediate(_previewInstance);
         }
@@ -263,7 +270,9 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath
                 EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);
                 _previewScroll = EditorGUILayout.BeginScrollView(
                     _previewScroll, GUILayout.MaxHeight(200f));
+                _previewEditor.serializedObject.Update();
                 _previewEditor.OnInspectorGUI();
+                _previewEditor.serializedObject.ApplyModifiedProperties();
                 EditorGUILayout.EndScrollView();
             }
 
@@ -305,6 +314,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath
             string assetPath = AssetDatabase.GenerateUniqueAssetPath(
                 Path.Combine(_assetFolder, _assetName + ".asset"));
 
+            _previewEditor?.serializedObject?.ApplyModifiedProperties();
             AssetDatabase.CreateAsset(_previewInstance, assetPath);
             AssetDatabase.SaveAssets();
             EditorGUIUtility.PingObject(_previewInstance);

@@ -86,8 +86,9 @@ $@"{indent}[CreateAssetMenu(fileName = ""{className}"", menuName = ""{menuPath}"
 
         /// <summary>Writes a Condition&lt;T&gt; subclass script to disk using the same template as the Condition Wizard.</summary>
         internal static void WriteConditionScript(
-            string className, string componentTypeName, string folder, string ns)
+            string className, Type componentType, string folder, string ns)
         {
+            string componentTypeName = componentType.Name;
             string menuPath     = $"FuzzyBrain/Conditions/{className}";
             bool   hasNamespace = !string.IsNullOrWhiteSpace(ns);
             string indent       = hasNamespace ? "    " : string.Empty;
@@ -104,9 +105,14 @@ $@"{indent}[CreateAssetMenu(fileName = ""{className}"", menuName = ""{menuPath}"
 {indent}    }}
 {indent}}}";
 
+            string compNs    = componentType.Namespace;
+            string compUsing = (!string.IsNullOrEmpty(compNs) && compNs != "UnityEngine")
+                ? $"using {compNs};\n"
+                : string.Empty;
+
             string template = hasNamespace
-                ? $"using UnityEngine;\nusing FuzzyBrain;\n\nnamespace {ns}\n{{\n{classBody}\n}}\n"
-                : $"using UnityEngine;\nusing FuzzyBrain;\n\n{classBody}\n";
+                ? $"using UnityEngine;\nusing FuzzyBrain;\n{compUsing}\nnamespace {ns}\n{{\n{classBody}\n}}\n"
+                : $"using UnityEngine;\nusing FuzzyBrain;\n{compUsing}\n{classBody}\n";
 
             WriteAndOpen(template, folder, className);
             Debug.Log($"[FuzzyBrain] Generated condition script: {Path.Combine(folder, className + ".cs")}");
@@ -232,10 +238,9 @@ $@"{indent}[CreateAssetMenu(fileName = ""{className}"", menuName = ""{menuPath}"
                     if (GUILayout.Button("Create", GUILayout.Height(26f)) ||
                         (pressedReturn && canCreate))
                     {
-                        var    settings       = FuzzyBrainSettings.GetOrCreate();
-                        string componentName  = _componentTypes[_componentIndex].Name;
+                        var settings = FuzzyBrainSettings.GetOrCreate();
                         FuzzyBrainProjectMenuItems.WriteConditionScript(
-                            _className, componentName, _outputFolder, settings.defaultNamespace);
+                            _className, _componentTypes[_componentIndex], _outputFolder, settings.defaultNamespace);
                         Close();
                     }
                 }

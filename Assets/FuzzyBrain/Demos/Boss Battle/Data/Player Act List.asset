@@ -13,17 +13,17 @@ MonoBehaviour:
   m_Name: Player Act List
   m_EditorClassIdentifier: 
   list:
+  - {fileID: 11400000, guid: 4a7edf731d7baac44abcc220e20e47c8, type: 2}
   - {fileID: 11400000, guid: 12ebdbb004750794fba39553d64b79d0, type: 2}
   - {fileID: 11400000, guid: f50e91662ca5f2a4e9c5bb73fe6fdb22, type: 2}
   - {fileID: 11400000, guid: 4a7b1715e771e904f9cb33993894af8e, type: 2}
   - {fileID: 11400000, guid: ef17a3490038aa141859653c2de4a7c3, type: 2}
-  - {fileID: 11400000, guid: 4a7edf731d7baac44abcc220e20e47c8, type: 2}
   - {fileID: 11400000, guid: 2659acccebe1b81409061d9c6aa705d9, type: 2}
-  - {fileID: 11400000, guid: 52c1d55200f093f4198035074402ce9d, type: 2}
   - {fileID: 11400000, guid: e124859e2f562d04e86b1c328548d60e, type: 2}
   - {fileID: 11400000, guid: 441de37a1b1af1940be35f92ee4189a6, type: 2}
   - {fileID: 11400000, guid: ed6e80960e88e79429623298ed719192, type: 2}
   - {fileID: 11400000, guid: cd7e102c360223e4386389bbb68853da, type: 2}
+  - {fileID: 11400000, guid: 52c1d55200f093f4198035074402ce9d, type: 2}
   - {fileID: 11400000, guid: 05520a07198251b4688a2f123794d246, type: 2}
   - {fileID: 11400000, guid: 6ead65805c8581d44b43401401a8cdd7, type: 2}
   - {fileID: 11400000, guid: a25301e3a2572a743a51cd24e60a16e5, type: 2}
