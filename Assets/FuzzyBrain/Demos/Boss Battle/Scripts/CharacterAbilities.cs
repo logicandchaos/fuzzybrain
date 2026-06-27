@@ -43,6 +43,9 @@ public class CharacterAbilities : MonoBehaviour
     [Header("Ground Detection")]
     [SerializeField] private LayerMask _groundMask = ~0; // default: everything; assign Ground layer in Inspector
 
+    [SerializeField] private GameObject dustCloud;
+    [SerializeField] private GameObject muzzleFlash;
+
 
     // ── Public state ─────────────────────────────────────────────────────────────
 
@@ -93,6 +96,8 @@ public class CharacterAbilities : MonoBehaviour
         if (!IsGrounded) return;
 
         _rigidbody.linearVelocity = new Vector2(_rigidbody.linearVelocity.x, jumpForce);
+
+        //dust cloud
     }
 
     /// <summary>
@@ -116,6 +121,8 @@ public class CharacterAbilities : MonoBehaviour
         _rigidbody.linearVelocity = new Vector2(FacingDirection * dashSpeed, _rigidbody.linearVelocity.y);
         CancelInvoke(nameof(StopDash)); // cancel any previous dash that was interrupted
         Invoke(nameof(StopDash), dashDuration);
+
+        //dust cloud
     }
 
     private void StopDash()
@@ -147,6 +154,11 @@ public class CharacterAbilities : MonoBehaviour
 
         if (projectile.TryGetComponent(out Rigidbody2D projectileRb))
             projectileRb.linearVelocity = spawnPoint.right * projectileSpeed;
+
+        //knockback
+        _rigidbody.AddForce(new Vector2(-5 * FacingDirection, 0), ForceMode2D.Impulse);
+
+        //muzzleflash
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
@@ -167,7 +179,13 @@ public class CharacterAbilities : MonoBehaviour
         if (!IsGrounded && grounded)
             _canDoubleJump = true;
 
+        bool wasGrounded = IsGrounded;
+
         IsGrounded = grounded;
+
+        //dust cloud
+        if (wasGrounded == false && IsGrounded == true)
+            ;
     }
 
     // ── Gizmos ────────────────────────────────────────────────────────────────────

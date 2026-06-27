@@ -9,10 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eafcaa5746bee8d49b077d72e76c81d1, type: 3}
-  m_Name: PlayerDash
+  m_Script: {fileID: 11500000, guid: 6cfd8c71b1369d544b4b2a34be9ee028, type: 3}
+  m_Name: HorizontalDistanceToTargetGreaterThan10
   m_EditorClassIdentifier: 
-  conditions:
-  - {fileID: 11400000, guid: aaf93da225f67b54a894ab12b2758bf2, type: 2}
-  maxLockTime: 0.25
-  cooldown: 0
+  inverted: 0

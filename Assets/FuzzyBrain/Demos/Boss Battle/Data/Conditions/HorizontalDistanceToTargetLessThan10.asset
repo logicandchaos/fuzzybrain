@@ -9,10 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b6ef917771dd74446ae41b3c5a9615cc, type: 3}
-  m_Name: PlayerShoot
+  m_Script: {fileID: 11500000, guid: 711669966086d904b90d6b2f140b218b, type: 3}
+  m_Name: HorizontalDistanceToTargetLessThan10
   m_EditorClassIdentifier: 
-  conditions:
-  - {fileID: 11400000, guid: 04868ec4cffd6ee47be4284d7a637afc, type: 2}
-  maxLockTime: 0
-  cooldown: 0.125
+  inverted: 0

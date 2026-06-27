@@ -2022,6 +2022,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bucketCount: 1
   tickInterval: 0
+  _enableActLogging: 1
 --- !u!4 &1907502181
 Transform:
   m_ObjectHideFlags: 0

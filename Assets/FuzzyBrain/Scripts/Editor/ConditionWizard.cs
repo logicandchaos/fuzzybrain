@@ -490,6 +490,15 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
                 _quickMemberNames.Add(pi.Name);
             }
 
+            foreach (MethodInfo mi in componentType.GetMethods(flags))
+            {
+                if (mi.IsSpecialName) continue;
+                if (mi.GetParameters().Length != 0) continue;
+                if (!SupportedMemberTypes.Contains(mi.ReturnType)) continue;
+                _quickMembers.Add(mi);
+                _quickMemberNames.Add(mi.Name);
+            }
+
             _quickLeftIndex  = 0;
             _quickRightIndex = 0;
             _quickOpIndex    = 0;
@@ -519,11 +528,25 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
                 _quickRHSMemberNames.Add(pi.Name);
             }
 
+            foreach (MethodInfo mi in componentType.GetMethods(flags))
+            {
+                if (mi.IsSpecialName) continue;
+                if (mi.GetParameters().Length != 0) continue;
+                if (!SupportedMemberTypes.Contains(mi.ReturnType)) continue;
+                _quickRHSMembers.Add(mi);
+                _quickRHSMemberNames.Add(mi.Name);
+            }
+
             _quickRightIndex = 0;
         }
 
         private static Type GetMemberType(MemberInfo m) =>
-            m is FieldInfo fi ? fi.FieldType : ((PropertyInfo)m).PropertyType;
+            m is FieldInfo fi ? fi.FieldType :
+            m is PropertyInfo pi ? pi.PropertyType :
+            ((MethodInfo)m).ReturnType;
+
+        private static string GetMemberAccess(MemberInfo m, string componentExpr) =>
+            m is MethodInfo ? $"{componentExpr}.{m.Name}()" : $"{componentExpr}.{m.Name}";
 
         private static string[] GetOperatorsForMember(MemberInfo m) =>
             GetMemberType(m) == typeof(bool) ? BoolOnlyOperators : AllOperators;
@@ -592,9 +615,9 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
             string[]   ops        = GetOperatorsForMember(leftMember);
             string     op         = ops[Mathf.Clamp(_quickOpIndex, 0, ops.Length - 1)];
 
-            string lhs = $"component.{_quickMemberNames[safeLeft]}";
+            string lhs = GetMemberAccess(leftMember, "component");
             string rhs = _quickRHSIsField
-                ? $"rhsComponent.{_quickRHSMemberNames[Mathf.Clamp(_quickRightIndex, 0, _quickRHSMembers.Count - 1)]}"
+                ? GetMemberAccess(_quickRHSMembers[Mathf.Clamp(_quickRightIndex, 0, _quickRHSMembers.Count - 1)], "rhsComponent")
                 : GetCurrentLiteral(GetMemberType(leftMember));
 
             return $"{lhs} {op} {rhs}";
@@ -607,7 +630,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
             if (!ValidIdentifier.IsMatch(_quickClassName))
                 return "Class name must be a valid C# identifier.";
             if (_quickMembers.Count == 0)
-                return "No supported fields found on the selected component.";
+                return "No supported members found on the selected component.";
 
             string path = Path.Combine(_quickScriptFolder, _quickClassName + ".cs");
             if (File.Exists(path))
@@ -640,7 +663,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
             if (_quickMemberNames.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "No supported public fields found on this type (bool, int, float, double, string).",
+                    "No supported public fields, properties, or methods found on this type (bool, int, float, double, string).",
                     MessageType.Info);
                 return;
             }
@@ -754,15 +777,16 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
                 string rhsTypeName = rhsType.Name;
                 int    safeRight   = Mathf.Clamp(_quickRightIndex, 0, _quickRHSMembers.Count - 1);
                 string rightName   = _quickRHSMemberNames[safeRight];
+                MemberInfo rightMember = _quickRHSMembers[safeRight];
 
                 if (rhsType == lhsType)
                 {
                     // Same component type — reuse the parameter directly, no extra fetch needed
-                    rhsExpr  = $"component.{rightName}";
+                    rhsExpr  = GetMemberAccess(rightMember, "component");
                 }
                 else
                 {
-                    rhsExpr  = $"rhs.{rightName}";
+                    rhsExpr  = GetMemberAccess(rightMember, "rhs");
                     rhsFetch = $"        var rhs = component.gameObject.GetComponent<{rhsTypeName}>();\n" +
                                $"        if (rhs == null) return false;\n";
                 }
@@ -782,6 +806,8 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
                 ? $"using {lhsNs};\n"
                 : string.Empty;
 
+            string leftAccess = GetMemberAccess(leftMember, "component");
+
             string template =
 $@"using UnityEngine;
 using FuzzyBrain;
@@ -791,7 +817,7 @@ public class {_quickClassName} : Condition<{lhsName}>
 {{
     protected override bool Verify({lhsName} component)
     {{
-{rhsFetch}        bool result = component.{leftName} {op} {rhsExpr};
+{rhsFetch}        bool result = {leftAccess} {op} {rhsExpr};
         return inverted ? !result : result;
     }}
 }}
