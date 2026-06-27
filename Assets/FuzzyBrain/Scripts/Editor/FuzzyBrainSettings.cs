@@ -15,8 +15,9 @@ namespace FuzzyBrain.Editor
         private const string SettingsAssetPath =
             "Assets/FuzzyBrain/Editor/FuzzyBrainSettings.asset";
 
-        public string conditionScriptsFolder = "Assets/FuzzyBrain/Scripts/ActorConditions";
-        public string conditionAssetsFolder  = "Assets/FuzzyBrain/Data/Conditions";
+        public string conditionScriptsFolder      = "Assets/FuzzyBrain/Scripts/ActorConditions";
+        public string quickConditionScriptsFolder = "Assets/FuzzyBrain/Scripts/ActorConditions";
+        public string conditionAssetsFolder       = "Assets/FuzzyBrain/Data/Conditions";
         public string actScriptsFolder       = "Assets/FuzzyBrain/Scripts/Acts";
         public string actAssetsFolder        = "Assets/FuzzyBrain/Data/Acts";
         [FormerlySerializedAs("ActListFolder")]

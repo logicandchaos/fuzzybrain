@@ -202,6 +202,12 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath
 
             string filePath = Path.Combine(_scriptFolder, _className + ".cs");
             File.WriteAllText(filePath, template);
+
+            var settings = FuzzyBrainSettings.GetOrCreate();
+            settings.actScriptsFolder = _scriptFolder;
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+
             AssetDatabase.Refresh();
 
             string[] lines    = template.Split('\n');

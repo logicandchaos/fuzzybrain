@@ -98,7 +98,7 @@ namespace FuzzyBrain.Editor
             var settings       = FuzzyBrainSettings.GetOrCreate();
             _scriptFolder      = settings.conditionScriptsFolder;
             _assetFolder       = settings.conditionAssetsFolder;
-            _quickScriptFolder = settings.conditionScriptsFolder;
+            _quickScriptFolder = settings.quickConditionScriptsFolder;
             _namespace         = settings.defaultNamespace;
 
             PopulateComponentTypes();
@@ -116,9 +116,10 @@ namespace FuzzyBrain.Editor
         private void OnDestroy()
         {
             var settings = FuzzyBrainSettings.GetOrCreate();
-            settings.conditionScriptsFolder = _scriptFolder;
-            settings.conditionAssetsFolder  = _assetFolder;
-            settings.defaultNamespace       = _namespace;
+            settings.conditionScriptsFolder      = _scriptFolder;
+            settings.quickConditionScriptsFolder = _quickScriptFolder;
+            settings.conditionAssetsFolder       = _assetFolder;
+            settings.defaultNamespace            = _namespace;
             EditorUtility.SetDirty(settings);
             AssetDatabase.SaveAssets();
 
@@ -316,6 +317,12 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
 
             string filePath = Path.Combine(_scriptFolder, _conditionName + ".cs");
             File.WriteAllText(filePath, template);
+
+            var settings = FuzzyBrainSettings.GetOrCreate();
+            settings.conditionScriptsFolder = _scriptFolder;
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+
             AssetDatabase.Refresh();
 
             string[] lines    = template.Split('\n');
@@ -725,6 +732,9 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
 
             // Output
             _quickClassName = EditorGUILayout.TextField("Class Name", _quickClassName);
+            _namespace = EditorGUILayout.TextField(
+                new GUIContent("Namespace", "C# namespace for the generated class. Leave empty for global namespace."),
+                _namespace);
             using (new EditorGUILayout.HorizontalScope())
             {
                 _quickScriptFolder = EditorGUILayout.TextField("Scripts Folder", _quickScriptFolder);
@@ -808,25 +818,35 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_conditionName}"", menuName = ""{_menu
 
             string leftAccess = GetMemberAccess(leftMember, "component");
 
-            string template =
-$@"using UnityEngine;
-using FuzzyBrain;
-{lhsNsUsing}{rhsNsUsing}
-[CreateAssetMenu(fileName = ""{_quickClassName}"", menuName = ""FuzzyBrain/Conditions/{_quickClassName}"")]
-public class {_quickClassName} : Condition<{lhsName}>
-{{
-    protected override bool Verify({lhsName} component)
-    {{
-{rhsFetch}        bool result = {leftAccess} {op} {rhsExpr};
-        return inverted ? !result : result;
-    }}
-}}
-";
+            bool   hasNamespace = !string.IsNullOrWhiteSpace(_namespace);
+            string indent       = hasNamespace ? "    " : string.Empty;
+
+            string classBody =
+$@"{indent}[CreateAssetMenu(fileName = ""{_quickClassName}"", menuName = ""FuzzyBrain/Conditions/{_quickClassName}"")]
+{indent}public class {_quickClassName} : Condition<{lhsName}>
+{indent}{{
+{indent}    protected override bool Verify({lhsName} component)
+{indent}    {{
+{rhsFetch}{indent}        bool result = {leftAccess} {op} {rhsExpr};
+{indent}        return inverted ? !result : result;
+{indent}    }}
+{indent}}}";
+
+            string template = hasNamespace
+                ? $"using UnityEngine;\nusing FuzzyBrain;\n{lhsNsUsing}{rhsNsUsing}\nnamespace {_namespace}\n{{\n{classBody}\n}}\n"
+                : $"using UnityEngine;\nusing FuzzyBrain;\n{lhsNsUsing}{rhsNsUsing}\n{classBody}\n";
             if (!Directory.Exists(_quickScriptFolder))
                 Directory.CreateDirectory(_quickScriptFolder);
 
             string filePath = Path.Combine(_quickScriptFolder, _quickClassName + ".cs");
             File.WriteAllText(filePath, template);
+
+            var settings = FuzzyBrainSettings.GetOrCreate();
+            settings.quickConditionScriptsFolder = _quickScriptFolder;
+            settings.defaultNamespace            = _namespace;
+            EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
+
             AssetDatabase.Refresh();
 
             string[] lines      = template.Split('\n');

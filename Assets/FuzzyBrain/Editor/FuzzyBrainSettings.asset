@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: FuzzyBrainSettings
   m_EditorClassIdentifier: 
   conditionScriptsFolder: Assets/FuzzyBrain/Scripts/ActorConditions
+  quickConditionScriptsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Scripts/Conditions
   conditionAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data
   actScriptsFolder: Assets/FuzzyBrain/Scripts/Acts
   actAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data
