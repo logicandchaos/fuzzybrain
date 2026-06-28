@@ -14,6 +14,37 @@ namespace FuzzyBrain.Editor
     /// </summary>
     internal static class FuzzyBrainProjectMenuItems
     {
+        [MenuItem("Assets/Invert Condition %#i", false, 20)]
+        private static void InvertCondition()
+        {
+            var source = Selection.activeObject as Condition;
+            if (source == null) return;
+
+            string sourcePath = AssetDatabase.GetAssetPath(source);
+            string folder     = Path.GetDirectoryName(sourcePath)?.Replace('\\', '/') ?? "Assets";
+            string newPath    = AssetDatabase.GenerateUniqueAssetPath(
+                                    Path.Combine(folder, "Not" + source.name + ".asset"));
+
+            AssetDatabase.CopyAsset(sourcePath, newPath);
+
+            var copy = AssetDatabase.LoadAssetAtPath<Condition>(newPath);
+            var so   = new SerializedObject(copy);
+            so.FindProperty("inverted").boolValue = true;
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            EditorUtility.SetDirty(copy);
+            AssetDatabase.SaveAssets();
+
+            Selection.activeObject = copy;
+            EditorGUIUtility.PingObject(copy);
+        }
+
+        [MenuItem("Assets/Invert Condition %#i", true)]
+        private static bool InvertConditionValidate()
+        {
+            return Selection.activeObject is Condition;
+        }
+
         [MenuItem("Assets/Create/FuzzyBrain/Act Script", priority = 81)]
         private static void CreateActScript()
         {

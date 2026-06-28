@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd87befc84af08549a77ec5f4cb8f9a5, type: 3}
   m_Name: FuzzyBrainSettings
   m_EditorClassIdentifier: 
-  conditionScriptsFolder: Assets/FuzzyBrain/Scripts/ActorConditions
+  conditionScriptsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Scripts/Conditions
   quickConditionScriptsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Scripts/Conditions
-  conditionAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data
+  conditionAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data/Conditions
   actScriptsFolder: Assets/FuzzyBrain/Scripts/Acts
   actAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data
   actListFolder: Assets/FuzzyBrain/Data/ActLists
-  defaultNamespace: 
+  defaultNamespace: BossBattleDemo

@@ -13,6 +13,7 @@ namespace FuzzyBrain
     /// Default settings (bucketCount=1, tickInterval=0) evaluate all actors every frame.
     /// </summary>
     [AddComponentMenu("FuzzyBrain/FuzzyBrain Manager")]
+    [DefaultExecutionOrder(-1000)]
     public class FuzzyBrainManager : MonoBehaviour
     {
         public static FuzzyBrainManager Instance { get; private set; }

@@ -13,4 +13,8 @@ MonoBehaviour:
   m_Name: Enemy Act List
   m_EditorClassIdentifier: 
   list:
+  - {fileID: 11400000, guid: 20bf2cbbf5cc5484487ec5bc1378983c, type: 2}
+  - {fileID: 11400000, guid: d4d4134143b688749871985fd34807d7, type: 2}
+  - {fileID: 11400000, guid: 3439330604451cb4294432c1442fd265, type: 2}
+  - {fileID: 11400000, guid: ae2a595af0c3e3b4bb697cb1e5903d21, type: 2}
   - {fileID: 11400000, guid: a25301e3a2572a743a51cd24e60a16e5, type: 2}
