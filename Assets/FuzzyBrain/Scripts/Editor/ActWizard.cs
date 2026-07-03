@@ -237,6 +237,10 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath
                 return;
             }
 
+            // Recover preview instance if it was destroyed (e.g. after a domain reload).
+            if (_previewInstance == null && _actTypes.Count > 0)
+                RefreshPreviewInstance();
+
             EditorGUI.BeginChangeCheck();
             _actTypeIndex = EditorGUILayout.Popup("Act Type", _actTypeIndex, _actNames.ToArray());
             if (EditorGUI.EndChangeCheck())
@@ -270,7 +274,7 @@ $@"{indent}[CreateAssetMenu(fileName = ""{_className}"", menuName = ""{_menuPath
             }
 
             // Properties preview
-            if (_previewEditor != null)
+            if (_previewEditor != null && _previewInstance != null)
             {
                 EditorGUILayout.Space(8f);
                 EditorGUILayout.LabelField("Properties", EditorStyles.boldLabel);

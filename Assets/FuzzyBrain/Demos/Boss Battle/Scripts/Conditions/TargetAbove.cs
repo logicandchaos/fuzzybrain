@@ -6,7 +6,7 @@ public class TargetAbove : Condition<EnemyAi>
 {
     protected override bool Verify(EnemyAi component)
     {
-        bool result = component.VerticalDistance() > 5f;
+        bool result = component.TargetAbove();
         return inverted ? !result : result;
     }
 }

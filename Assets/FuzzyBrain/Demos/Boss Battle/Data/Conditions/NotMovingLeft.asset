@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 220cb7ae9647827488d28348aa91bbf2, type: 3}
   m_Name: NotMovingLeft
   m_EditorClassIdentifier: 
-  inverted: 0
+  inverted: 1
   direction: 0

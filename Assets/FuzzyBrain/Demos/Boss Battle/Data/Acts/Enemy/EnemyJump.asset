@@ -12,6 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 405750f60c36e9342a56848fcfa7775b, type: 3}
   m_Name: EnemyJump
   m_EditorClassIdentifier: 
-  conditions: []
+  conditions:
+  - {fileID: 11400000, guid: 8a60d04f2a4324e4a89716441678587c, type: 2}
+  - {fileID: 11400000, guid: 672e4fec22156584daa39657fe120723, type: 2}
+  - {fileID: 11400000, guid: f125f3c7afcd0ce4dbe9537758a62254, type: 2}
   maxLockTime: 0
-  cooldown: 0
+  cooldown: 0.5

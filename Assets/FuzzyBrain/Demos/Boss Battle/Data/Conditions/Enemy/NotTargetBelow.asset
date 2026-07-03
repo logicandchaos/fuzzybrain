@@ -9,8 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f0bb3afc8c404947bdc696fabbad1ee, type: 3}
-  m_Name: TargetClose
+  m_Script: {fileID: 11500000, guid: 3c5d6b07632496c4a97f2495833950f6, type: 3}
+  m_Name: NotTargetBelow
   m_EditorClassIdentifier: 
   inverted: 1
-  _value: 10

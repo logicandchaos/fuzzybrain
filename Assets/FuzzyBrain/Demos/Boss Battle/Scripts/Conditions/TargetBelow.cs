@@ -5,8 +5,8 @@ using FuzzyBrain;
 public class TargetBelow : Condition<EnemyAi>
 {
     protected override bool Verify(EnemyAi component)
-    {
-        bool result = component.VerticalDistance() < -5f;
+    {        
+        bool result = component.TargetBelow();
         return inverted ? !result : result;
     }
 }

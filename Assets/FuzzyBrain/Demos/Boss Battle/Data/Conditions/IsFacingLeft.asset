@@ -9,8 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f0bb3afc8c404947bdc696fabbad1ee, type: 3}
-  m_Name: TargetClose
+  m_Script: {fileID: 11500000, guid: d4179fb1e68558b48b28314e264899b5, type: 3}
+  m_Name: IsFacingLeft
   m_EditorClassIdentifier: 
-  inverted: 1
-  _value: 10
+  inverted: 0
+  direction: -1

@@ -13,3 +13,4 @@ MonoBehaviour:
   m_Name: HealthLessThanQuarter
   m_EditorClassIdentifier: 
   inverted: 0
+  _value: 25

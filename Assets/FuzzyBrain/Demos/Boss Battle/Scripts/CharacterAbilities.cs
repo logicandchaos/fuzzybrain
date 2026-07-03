@@ -43,12 +43,6 @@ public class CharacterAbilities : MonoBehaviour
     [Header("Ground Detection")]
     [SerializeField] private LayerMask _groundMask = ~0; // default: everything; assign Ground layer in Inspector
 
-    [SerializeField] private GameObject dustCloud;
-    [SerializeField] private GameObject muzzleFlash;
-
-
-    // ── Public state ─────────────────────────────────────────────────────────────
-
     /// <summary>True when the character is touching the ground layer.</summary>    
     [field: SerializeField, FuzzyBrain.ReadOnly] public bool IsGrounded { get; private set; }
 
@@ -59,11 +53,7 @@ public class CharacterAbilities : MonoBehaviour
     /// <summary>Last horizontal direction the character moved in. 1 = right, -1 = left.</summary>
     [field: SerializeField, FuzzyBrain.ReadOnly] public float FacingDirection { get; private set; } = 1f;
 
-    // ── Private state ─────────────────────────────────────────────────────────────
-
     private Rigidbody2D _rigidbody;
-
-    // ── Unity lifecycle ───────────────────────────────────────────────────────────
 
     private void Awake()
     {
@@ -96,8 +86,6 @@ public class CharacterAbilities : MonoBehaviour
         if (!IsGrounded) return;
 
         _rigidbody.linearVelocity = new Vector2(_rigidbody.linearVelocity.x, jumpForce);
-
-        //dust cloud
     }
 
     /// <summary>
@@ -121,8 +109,6 @@ public class CharacterAbilities : MonoBehaviour
         _rigidbody.linearVelocity = new Vector2(FacingDirection * dashSpeed, _rigidbody.linearVelocity.y);
         CancelInvoke(nameof(StopDash)); // cancel any previous dash that was interrupted
         Invoke(nameof(StopDash), dashDuration);
-
-        //dust cloud
     }
 
     private void StopDash()
@@ -157,8 +143,6 @@ public class CharacterAbilities : MonoBehaviour
 
         //knockback
         _rigidbody.AddForce(new Vector2(-5 * FacingDirection, 0), ForceMode2D.Impulse);
-
-        //muzzleflash
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────────
@@ -182,10 +166,6 @@ public class CharacterAbilities : MonoBehaviour
         bool wasGrounded = IsGrounded;
 
         IsGrounded = grounded;
-
-        //dust cloud
-        if (wasGrounded == false && IsGrounded == true)
-            ;
     }
 
     // ── Gizmos ────────────────────────────────────────────────────────────────────
