@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: UpInputCondition
   m_EditorClassIdentifier: 
   inverted: 0
-  actionName: Move
+  action: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   useXAxis: 0
   greaterThan: 1
   threshold: 0

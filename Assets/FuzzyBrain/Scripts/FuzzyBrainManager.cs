@@ -42,9 +42,15 @@ namespace FuzzyBrain
         /// <summary>Fires when _enableActLogging changes. FuzzyBrainLog subscribes to keep IsRecording in sync.</summary>
         public static System.Action<bool> OnActLoggingChanged;
 
+
         /// <summary>Fires each time an actor ticks. FuzzyBrainLog subscribes to record entries.</summary>
         public static System.Action<string, string> OnActRecorded;
 #endif
+
+        // ── Public API ────────────────────────────────────────────────────────────
+
+        /// <summary>Seconds between full condition evaluations per actor. Matches the Inspector field.</summary>
+        public float TickInterval => tickInterval;
 
         private List<Actor>[] _buckets;
         private float[] _bucketNextTick;

@@ -45,12 +45,6 @@ namespace FuzzyBrain
         }
 
         /// <summary>
-        /// Called once when this act is first selected by the evaluator.
-        /// Override to trigger animations, sounds, or other one-shot setup.
-        /// </summary>
-        public virtual void OnStart(ActContext ctx) { }
-
-        /// <summary>
         /// Called each tick while this act is locked. Return true when the act is finished.
         /// The default implementation returns true immediately (fire-and-forget).
         /// Override to keep the actor locked until custom completion logic is satisfied.

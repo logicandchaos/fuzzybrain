@@ -131,7 +131,6 @@ namespace FuzzyBrain
 
                 if (!act.CheckConditions(ctx)) continue;
 
-                act.OnStart(ctx);
                 act.PerformAct(ctx);
                 LastFiredAct = act;
 

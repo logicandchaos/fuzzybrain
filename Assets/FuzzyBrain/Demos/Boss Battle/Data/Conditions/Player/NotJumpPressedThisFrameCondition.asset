@@ -9,11 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 25972ed620bb5d544acd72ac5d248746, type: 3}
-  m_Name: NotUpInputCondition
+  m_Script: {fileID: 11500000, guid: cdb07b22d8cb4ca418aaa67de2522bfe, type: 3}
+  m_Name: NotJumpPressedThisFrameCondition
   m_EditorClassIdentifier: 
   inverted: 1
-  action: {fileID: -1680190386980627800, guid: 052faaac586de48259a63d0c4782560b, type: 3}
-  useXAxis: 0
-  greaterThan: 1
-  threshold: 0
+  action: {fileID: -2099379676528639254, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  consumeOnUse: 0

@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: DashPressedThisFrameCondition
   m_EditorClassIdentifier: 
   inverted: 0
-  actionName: Dash
+  action: {fileID: -8906084052256980429, guid: 052faaac586de48259a63d0c4782560b, type: 3}

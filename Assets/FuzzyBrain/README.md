@@ -25,7 +25,7 @@ Act — 0 conditions   ← fallback, always fires if nothing else matches
 2. Open `Tools > FuzzyBrain > Editor`.
 3. With the Actor selected, click **+ New List** to create a `ScriptableActList` asset.
 4. Click **+ New Act** to open the Act Wizard, or drag an existing Act asset into the list.
-5. Select a row to open the Act detail panel — add Condition assets and set `maxClockTime` if the act should lock.
+5. Select a row to open the Act detail panel — add Condition assets and set `maxLockTime` if the act should lock.
 
 ---
 
@@ -46,7 +46,7 @@ public class PlayAttackAnim : Act
 }
 ```
 
-Override `OnStart` for one-shot setup that runs once per lock cycle. Override `IsComplete` to keep the Actor locked until a signal arrives (animation end, physics event, etc.). Always set `maxClockTime` on the asset as a safety timeout when overriding `IsComplete`.
+Override `IsComplete` to keep the Actor locked until a signal arrives (animation end, physics event, etc.). Always set `maxLockTime` on the asset as a safety timeout when overriding `IsComplete`.
 
 ---
 
@@ -164,7 +164,7 @@ All conditions expose an `inverted` field. The four `Collider2D` conditions impl
 | `CurrentAct` | `Act` property | The act currently locked. `null` when no act is running. |
 | `LastFiredAct` | `Act` property | The act that fired most recently. Used by the FuzzyBrain Window for play-mode highlighting. |
 | `Die()` | method | Sets `isAlive = false` and deactivates the GameObject. Safe to wire to UnityEvents. |
-| `ResetActor()` | method | Resets `isAlive`, `isIdle`, and the current act lock to initial values. |
+| `ResetActor()` | method | Clears the current act lock, cooldown timers, and resets `isAlive` and `isIdle` to their initial values. |
 | `EnableActor()` | method | Sorts the act list and calls `ResetActor()`. Called automatically on `OnEnable`. |
 | `Refresh()` | method | Rebuilds the component cache and re-sorts the act list. Call after modifying acts or components at runtime. |
 | `SetActList(list)` | method | Assigns a new act list and calls `Refresh()`. Does not reset actor state. |
@@ -188,13 +188,13 @@ Subclass `IdleAct` to attach extra behaviour; call `base.PerformAct(ctx)` to pre
 
 ## Act Cooldowns
 
-When `OnStart` and `PerformAct` fire and `IsComplete` returns `false`, the Actor locks to that act — no other acts are evaluated until it unlocks. `IsComplete` is polled each tick; `maxClockTime` forces an unlock if it is exceeded.
+When `PerformAct` fires and `IsComplete` returns `false`, the Actor locks to that act — no other acts are evaluated until it unlocks. `IsComplete` is polled each tick; `maxLockTime` forces an unlock if it is exceeded.
 
-**Fire-and-forget** — override only `PerformAct`. `IsComplete` returns `true` immediately; no lock is set.
+**Fire-and-forget** — override only `PerformAct`. `IsComplete` returns `true` immediately (`maxLockTime == 0`); no lock is set.
 
-**Fixed-duration lock** — leave `IsComplete` at its default; set `maxClockTime` on the asset. The lock lasts exactly that many seconds.
+**Fixed-duration lock** — leave `IsComplete` at its default; set `maxLockTime` on the asset. The lock lasts exactly that many seconds.
 
-**Signal-driven lock** — override `IsComplete` to check an animation state, collision, or any game condition. Always set `maxClockTime` as a safety timeout.
+**Signal-driven lock** — override `IsComplete` to check an animation state, collision, or any game condition. Always set `maxLockTime` as a safety timeout.
 
 ```csharp
 public override bool IsComplete(ActContext ctx)
@@ -202,10 +202,10 @@ public override bool IsComplete(ActContext ctx)
     var anim = ctx.Get<Animator>();
     return anim == null || !anim.GetCurrentAnimatorStateInfo(0).IsName("Attack");
 }
-// Set maxClockTime: 2.0 on the asset — forces unlock if the animator gets stuck.
+// Set maxLockTime: 2.0 on the asset — forces unlock if the animator gets stuck.
 ```
 
-The lock state lives on the `Actor` and `ActClock` — multiple actors sharing the same `Act` asset each have independent lock state.
+The lock state lives on the `Actor` — multiple actors sharing the same `Act` asset each have independent lock state.
 
 ---
 
@@ -213,12 +213,12 @@ The lock state lives on the `Actor` and `ActClock` — multiple actors sharing t
 
 Add an **ActHistory** component to the Actor and use **PreviousActCondition** assets to require an exact act sequence. No custom code needed.
 
-`ActHistory` records each act when it unlocks. `PreviousActCondition.historyOffset = 0` checks the most recent completed act; `1` checks the one before that.
+`ActHistory` records each act when it unlocks — only locked acts are recorded; fire-and-forget acts are not. `PreviousActCondition.historyOffset = 0` checks the most recent completed act; `1` checks the one before that.
 
 ```
-FinisherAttack  [IsPressingFinisher, PrevAct=Heavy@0, PrevAct=Light@1]   maxClockTime: 1.2
-HeavyAttack     [IsPressingHeavy, PrevAct=Light@0]                        maxClockTime: 0.8
-LightAttack     [IsPressingLight]                                          maxClockTime: 0.5
+FinisherAttack  [IsPressingFinisher, PrevAct=Heavy@0, PrevAct=Light@1]   maxLockTime: 1.2
+HeavyAttack     [IsPressingHeavy, PrevAct=Light@0]                        maxLockTime: 0.8
+LightAttack     [IsPressingLight]                                          maxLockTime: 0.5
 Idle            []
 ```
 
