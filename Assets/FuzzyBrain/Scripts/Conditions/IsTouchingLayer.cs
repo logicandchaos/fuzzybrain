@@ -1,33 +1,35 @@
 using UnityEngine;
-using FuzzyBrain;
 
 /// <summary>
 /// Condition: checks whether the actor's Collider2D is currently touching any collider on the specified layer.
 /// Uses Physics2D.IsTouchingLayers — accurate for contacts already computed by the physics engine.
 /// Implements IGizmoDrawable — draws the collider bounds in the Scene view.
 /// </summary>
-[CreateAssetMenu(fileName = "IsTouchingLayer", menuName = "FuzzyBrain/Conditions/IsTouchingLayer")]
-public class IsTouchingLayer : Condition<Collider2D>, IGizmoDrawable
+namespace FuzzyBrain
 {
-    [Tooltip("Physics layer to check contact with.")]
-    public LayerMask layer;
-
-    protected override bool Verify(Collider2D col)
+    [CreateAssetMenu(fileName = "IsTouchingLayer", menuName = "FuzzyBrain/Conditions/IsTouchingLayer")]
+    public class IsTouchingLayer : Condition<Collider2D>, IGizmoDrawable
     {
-        bool result = col.IsTouchingLayers(layer);
-        return inverted ? !result : result;
-    }
+        [Tooltip("Physics layer to check contact with.")]
+        public LayerMask layer;
 
-    /// <summary>Draws the collider bounds outline. Grey in edit mode, green/red in play mode.</summary>
-    public void DrawGizmo(ActContext ctx)
-    {
-        Collider2D col = ctx.Get<Collider2D>();
-        if (col == null) return;
+        protected override bool Verify(Collider2D col)
+        {
+            bool result = col.IsTouchingLayers(layer);
+            return inverted ? !result : result;
+        }
 
-        bool touching = col.IsTouchingLayers(layer);
+        /// <summary>Draws the collider bounds outline. Grey in edit mode, green/red in play mode.</summary>
+        public void DrawGizmo(ActContext ctx)
+        {
+            Collider2D col = ctx.Get<Collider2D>();
+            if (col == null) return;
 
-        Gizmos.color = Application.isPlaying ? (touching ? Color.green : Color.red) : Color.grey;
-        Bounds b = col.bounds;
-        Gizmos.DrawWireCube(b.center, b.size);
+            bool touching = col.IsTouchingLayers(layer);
+
+            Gizmos.color = Application.isPlaying ? (touching ? Color.green : Color.red) : Color.grey;
+            Bounds b = col.bounds;
+            Gizmos.DrawWireCube(b.center, b.size);
+        }
     }
 }

@@ -1,30 +1,33 @@
 using UnityEngine;
 
-public class Bullet : MonoBehaviour
+namespace BossBattleDemo
 {
-    public int damage = 5;
-    public float despawnDelay = 2f;
-
-    private void OnEnable()
+    public class Bullet : MonoBehaviour
     {
-        Invoke(nameof(Despawn), despawnDelay);
-    }
+        public int damage = 5;
+        public float despawnDelay = 2f;
 
-    public void Despawn()
-    {
-        Destroy(gameObject);
-    }
-
-    private void OnCollisionEnter2D(Collision2D collision)
-    {
-        CharacterAbilities character = collision.gameObject.GetComponent<CharacterAbilities>();
-        if (character != null)
+        private void OnEnable()
         {
-            character.health -= damage;
-            if (character.health < 0)
-                Destroy(character.gameObject);
+            Invoke(nameof(Despawn), despawnDelay);
         }
-        CancelInvoke(nameof(Despawn));
-        Destroy(gameObject);
+
+        public void Despawn()
+        {
+            Destroy(gameObject);
+        }
+
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            CharacterAbilities character = collision.gameObject.GetComponent<CharacterAbilities>();
+            if (character != null)
+            {
+                character.health -= damage;
+                if (character.health < 0)
+                    Destroy(character.gameObject);
+            }
+            CancelInvoke(nameof(Despawn));
+            Destroy(gameObject);
+        }
     }
 }

@@ -1,12 +1,15 @@
 using UnityEngine;
 using FuzzyBrain;
 
-[CreateAssetMenu(fileName = "TargetRight", menuName = "FuzzyBrain/Conditions/TargetRight")]
-public class TargetRight : Condition<EnemyAi>
+namespace BossBattleDemo
 {
-    protected override bool Verify(EnemyAi component)
+    [CreateAssetMenu(fileName = "TargetRight", menuName = "FuzzyBrain/Conditions/TargetRight")]
+    public class TargetRight : Condition<EnemyAi>
     {
-        bool result = component.DirectionToTarget() == 1;
-        return inverted ? !result : result;
+        protected override bool Verify(EnemyAi component)
+        {
+            bool result = component.DirectionToTarget() == 1;
+            return inverted ? !result : result;
+        }
     }
 }

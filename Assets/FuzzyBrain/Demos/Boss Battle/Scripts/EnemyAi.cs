@@ -1,93 +1,96 @@
 using UnityEngine;
 
-public class EnemyAi : MonoBehaviour
+namespace BossBattleDemo
 {
-    public Transform target;
-    public float PositionX() { return transform.position.x; }
-    public float PositionY() { return transform.position.y; }
-
-    public enum AimAngle
+    public class EnemyAi : MonoBehaviour
     {
-        Straight = 0,
-        DiagonalUp = 45,
-        DiagonalDown = -45
-    }
+        public Transform target;
+        public float PositionX() { return transform.position.x; }
+        public float PositionY() { return transform.position.y; }
 
-    private CharacterAbilities _abilities;
-
-    private void Awake()
-    {
-        _abilities = GetComponent<CharacterAbilities>();
-        _abilities.FacingDirection = -1;
-    }
-
-    // 2D magnitude to Target
-    public float DistanceToTarget()
-    {
-        if (target == null)
-            return 0f;
-        return Vector2.Distance(transform.position, target.position);
-    }
-
-    // Horizontal distance from target
-    public float HorizontalDistanceToTarget()
-    {
-        if (target == null)
-            return 0f;
-        return Mathf.Abs(transform.position.x - target.position.x);
-    }
-
-    // Vertical distance from target
-    public float VerticalDistanceToTarget()
-    {
-        if (target == null)
-            return 0f;
-        return Mathf.Abs(transform.position.y - target.position.y);
-    }
-
-    public bool TargetAbove()
-    {
-        if (target == null)
-            return false;
-        return target.position.y > transform.position.y;
-    }
-
-    public bool TargetBelow()
-    {
-        if (target == null)
-            return false;
-        return target.position.y < transform.position.y;
-    }
-
-    public int DirectionToTarget()
-    {
-        if (target == null)
-            return 0;
-        return target.position.x < transform.position.x ? -1 : 1;
-    }
-
-    public void AimAtTarget()
-    {
-        if (target == null)
-            return;
-        float angle = 0;
-        if (HorizontalDistanceToTarget() > 12)
+        public enum AimAngle
         {
-            angle = (float)AimAngle.Straight;
+            Straight = 0,
+            DiagonalUp = 45,
+            DiagonalDown = -45
         }
-        else
+
+        private CharacterAbilities _abilities;
+
+        private void Awake()
         {
-            if (VerticalDistanceToTarget() > 3)
+            _abilities = GetComponent<CharacterAbilities>();
+            _abilities.FacingDirection = -1;
+        }
+
+        // 2D magnitude to Target
+        public float DistanceToTarget()
+        {
+            if (target == null)
+                return 0f;
+            return Vector2.Distance(transform.position, target.position);
+        }
+
+        // Horizontal distance from target
+        public float HorizontalDistanceToTarget()
+        {
+            if (target == null)
+                return 0f;
+            return Mathf.Abs(transform.position.x - target.position.x);
+        }
+
+        // Vertical distance from target
+        public float VerticalDistanceToTarget()
+        {
+            if (target == null)
+                return 0f;
+            return Mathf.Abs(transform.position.y - target.position.y);
+        }
+
+        public bool TargetAbove()
+        {
+            if (target == null)
+                return false;
+            return target.position.y > transform.position.y;
+        }
+
+        public bool TargetBelow()
+        {
+            if (target == null)
+                return false;
+            return target.position.y < transform.position.y;
+        }
+
+        public int DirectionToTarget()
+        {
+            if (target == null)
+                return 0;
+            return target.position.x < transform.position.x ? -1 : 1;
+        }
+
+        public void AimAtTarget()
+        {
+            if (target == null)
+                return;
+            float angle = 0;
+            if (HorizontalDistanceToTarget() > 12)
+            {
                 angle = (float)AimAngle.Straight;
+            }
             else
             {
-                if (TargetAbove())
-                    angle = (float)AimAngle.DiagonalUp;
+                if (VerticalDistanceToTarget() > 3)
+                    angle = (float)AimAngle.Straight;
                 else
-                    angle = (float)AimAngle.DiagonalDown;
+                {
+                    if (TargetAbove())
+                        angle = (float)AimAngle.DiagonalUp;
+                    else
+                        angle = (float)AimAngle.DiagonalDown;
+                }
             }
+            _abilities.FacingDirection = DirectionToTarget();
+            _abilities.Aim(angle);
         }
-        _abilities.FacingDirection = DirectionToTarget();
-        _abilities.Aim(angle);
     }
 }
