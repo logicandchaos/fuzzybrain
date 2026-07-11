@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be758077937de06459127ee2eabe31d2, type: 3}
+  m_Name: EnemyDashUnder
+  m_EditorClassIdentifier: 
+  conditions:
+  - {fileID: 11400000, guid: ba376787adf1ad44cb98e69a1c017bda, type: 2}
+  - {fileID: 11400000, guid: 1f924e88d2dbad248a3e886fac60f438, type: 2}
+  - {fileID: 11400000, guid: bc85b7d307f06d441b7d5fd4e1d3769a, type: 2}
+  - {fileID: 11400000, guid: f125f3c7afcd0ce4dbe9537758a62254, type: 2}
+  maxLockTime: 0.25
+  cooldown: 0.5

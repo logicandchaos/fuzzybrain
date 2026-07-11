@@ -16,6 +16,7 @@ MonoBehaviour:
   quickConditionScriptsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Scripts/Conditions
   conditionAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data/Conditions
   actScriptsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Scripts/Acts
+  quickActScriptsFolder: Assets/FuzzyBrain/Scripts/Acts
   actAssetsFolder: Assets/FuzzyBrain/Demos/Boss Battle/Data
   actListFolder: Assets/FuzzyBrain/Data/ActLists
   defaultNamespace: BossBattleDemo

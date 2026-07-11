@@ -12,4 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4768bade60e2a942b75bcfe62f89928, type: 3}
   m_Name: NotCloseToRightWall
   m_EditorClassIdentifier: 
-  inverted: 0
+  inverted: 1

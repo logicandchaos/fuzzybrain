@@ -1337,12 +1337,13 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1451376146}
-  - component: {fileID: 1451376147}
   - component: {fileID: 1451376145}
   - component: {fileID: 1451376148}
   - component: {fileID: 1451376144}
   - component: {fileID: 1451376143}
   - component: {fileID: 1451376142}
+  - component: {fileID: 1451376149}
+  - component: {fileID: 1451376150}
   m_Layer: 10
   m_Name: Enemy
   m_TagString: Untagged
@@ -1513,21 +1514,6 @@ Transform:
   - {fileID: 1802705181}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 180, z: 0}
---- !u!114 &1451376147
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1451376141}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f8242ee281a556f4f88d192c3f1ece2b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  acts: {fileID: 11400000, guid: be2ecc0fd6b0a084085fb37faae65829, type: 2}
-  isIdle: 0
-  isAlive: 1
 --- !u!114 &1451376148
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1541,6 +1527,35 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 258484878}
+--- !u!114 &1451376149
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1451376141}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8242ee281a556f4f88d192c3f1ece2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  acts: {fileID: 11400000, guid: 151e8167cd88a484393ddd2f5977990e, type: 2}
+  isIdle: 0
+  isAlive: 1
+--- !u!114 &1451376150
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1451376141}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1b89dc2f2d91145979a1c87d634423, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  depth: 4
+  _preview: []
 --- !u!1 &1499370872
 GameObject:
   m_ObjectHideFlags: 0
@@ -2048,8 +2063,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bucketCount: 1
-  tickInterval: 0
-  _enableActLogging: 0
+  tickInterval: 0.01
+  _enableActLogging: 1
 --- !u!4 &1907502181
 Transform:
   m_ObjectHideFlags: 0

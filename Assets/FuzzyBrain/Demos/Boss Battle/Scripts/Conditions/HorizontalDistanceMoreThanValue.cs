@@ -10,7 +10,7 @@ namespace BossBattleDemo
         protected override bool Verify(EnemyAi component)
         {
             // TODO: implement condition logic
-            bool result = component.HorizontalDistance() > _value;
+            bool result = component.HorizontalDistanceToTarget() > _value;
             return inverted ? !result : result;
         }
     }

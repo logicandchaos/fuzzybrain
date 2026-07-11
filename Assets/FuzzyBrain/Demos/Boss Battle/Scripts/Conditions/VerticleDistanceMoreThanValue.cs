@@ -9,7 +9,7 @@ namespace BossBattleDemo
         [SerializeField] private float _value;
         protected override bool Verify(EnemyAi component)
         {
-            bool result = component.VerticalDistance() > _value;
+            bool result = component.VerticalDistanceToTarget() > _value;
             return inverted ? !result : result;
         }
     }

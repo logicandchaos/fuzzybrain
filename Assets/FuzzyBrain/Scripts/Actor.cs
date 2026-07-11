@@ -114,8 +114,7 @@ namespace FuzzyBrain
 
                 if (!done && !timeout) return;
 
-                // Unlock: record in history before clearing.
-                _actHistory?.RecordAct(_currentAct);
+                // Unlock: clear current act without re-recording — act was already recorded on fire.
                 _currentAct = null;
             }
 
@@ -133,6 +132,7 @@ namespace FuzzyBrain
 
                 act.PerformAct(ctx);
                 LastFiredAct = act;
+                _actHistory?.RecordAct(act);
 
                 if (act.cooldown > 0f)
                     _cooldownEndTimes[act] = Time.time + act.cooldown;

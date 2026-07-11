@@ -50,6 +50,7 @@ namespace FuzzyBrain.Editor
         // ── State ─────────────────────────────────────────────────────────────────
 
         private Actor              _actor;
+        private string             _lastActorName;
         private SerializedObject   _actorSO;
         private SerializedObject   _actListSO;
         private SerializedObject   _actSO;
@@ -58,7 +59,7 @@ namespace FuzzyBrain.Editor
         private IMGUIContainer     _listContainer;
         private ReorderableList    _reorderableList;
         private VisualElement       _detailContent;
-        private Label               _actorLabel;
+        private ObjectField         _actorField;
         private Label               _activeActLabel;
         private Button              _addActBtn;
         private int                 _selectedIndex = -1;
@@ -90,7 +91,26 @@ namespace FuzzyBrain.Editor
 
         private void OnFocus()
         {
-            OnSelectionChanged();
+            // Guard against Unity's dock system firing OnFocus before BuildUI has run.
+            if (_detailContent == null) return;
+
+            // If a different Actor was selected while the window was unfocused, pick it up.
+            if (Selection.activeGameObject != null)
+            {
+                Actor selected = Selection.activeGameObject.GetComponent<Actor>();
+                if (selected != null && selected != _actor)
+                {
+                    SetActor(selected);
+                    return;
+                }
+            }
+
+            // Re-sync visuals in case UIElements lost state while Unity was out of focus.
+            // Reset the detail selection — serialized objects may be stale after a refresh.
+            _selectedIndex = -1;
+            RefreshToolbar();
+            RebuildTable();
+            ShowEmptyDetail();
         }
 
         private void OnDisable()
@@ -108,7 +128,38 @@ namespace FuzzyBrain.Editor
             if (state == PlayModeStateChange.EnteredPlayMode ||
                 state == PlayModeStateChange.EnteredEditMode)
             {
-                OnSelectionChanged();
+                // SerializedObjects become stale across play mode boundaries whether or not
+                // domain reload is enabled. Force a full reload by bypassing SetActor's
+                // early-return guard, then restore from the cached reference or the selection.
+                Actor current = _actor;
+                _actor = null;
+
+                if (current != null)
+                {
+                    SetActor(current);
+                }
+                else
+                {
+                    OnSelectionChanged();
+
+                    // If the actor was destroyed during play mode, OnSelectionChanged won't
+                    // find anything unless the user has one selected. Fall back to locating
+                    // the last known actor by name so the window restores automatically.
+                    if (state == PlayModeStateChange.EnteredEditMode
+                        && _actor == null
+                        && !string.IsNullOrEmpty(_lastActorName))
+                    {
+                        Actor[] actors = FindObjectsByType<Actor>(FindObjectsSortMode.None);
+                        foreach (Actor a in actors)
+                        {
+                            if (a.name == _lastActorName)
+                            {
+                                SetActor(a);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -127,6 +178,14 @@ namespace FuzzyBrain.Editor
 
         private void OnEditorUpdate()
         {
+            // Detect actor destroyed during play mode: Unity fake-null (C# ref alive, Unity side gone).
+            if ((object)_actor != null && _actor == null)
+            {
+                _actor = null;
+                SetActor(null);
+                return;
+            }
+
             if (!Application.isPlaying || _actor == null)
             {
                 if (_activeActLabel != null)
@@ -154,12 +213,17 @@ namespace FuzzyBrain.Editor
 
         private void OnSelectionChanged()
         {
-            Actor selected = null;
-            if (Selection.activeGameObject != null)
-                selected = Selection.activeGameObject.GetComponent<Actor>();
+            if (Selection.activeGameObject == null) return;
+            Actor selected = Selection.activeGameObject.GetComponent<Actor>();
+            if (selected == null) return;
+            SetActor(selected);
+        }
 
-            if (selected == _actor) return;
-            _actor = selected;
+        private void SetActor(Actor actor)
+        {
+            if (actor == _actor) return;
+            _actor   = actor;
+            if (_actor != null) _lastActorName = _actor.name;
             _actorSO = _actor != null ? new SerializedObject(_actor) : null;
             LoadActList();
             RefreshToolbar();
@@ -213,12 +277,12 @@ namespace FuzzyBrain.Editor
 
             // Toolbar
             var toolbar = new Toolbar();
-            _actorLabel = new Label("No Actor selected") { name = "actor-label" };
-            _actorLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            _actorLabel.style.alignSelf = Align.Center;
-            _actorLabel.style.marginLeft = 6f;
-            _actorLabel.style.marginRight = 10f;
-            toolbar.Add(_actorLabel);
+            _actorField = new ObjectField { objectType = typeof(Actor), name = "actor-field" };
+            _actorField.style.minWidth   = 180f;
+            _actorField.style.marginLeft = 4f;
+            _actorField.style.marginRight = 4f;
+            _actorField.RegisterValueChangedCallback(evt => SetActor(evt.newValue as Actor));
+            toolbar.Add(_actorField);
 
             // Act list field
             var listField = new ObjectField("Act List")
@@ -440,8 +504,8 @@ namespace FuzzyBrain.Editor
 
         private void RefreshToolbar()
         {
-            if (_actorLabel == null) return;
-            _actorLabel.text = _actor != null ? $"Actor: {_actor.name}" : "No Actor selected";
+            if (_actorField != null)
+                _actorField.SetValueWithoutNotify(_actor);
 
             var listField = rootVisualElement.Q<ObjectField>("act-list-field");
             if (listField != null)

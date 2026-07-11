@@ -15,6 +15,12 @@ public class CharacterAbilities : MonoBehaviour
     [Header("Run")]
     [Tooltip("Horizontal movement speed in units per second.")]
     [SerializeField] private float moveSpeed = 10f;
+    [HideInInspector]
+    public float Speed
+    {
+        get => moveSpeed;
+        set => moveSpeed = value;
+    }
 
     [Header("Jump")]
     [Tooltip("Vertical impulse applied on a grounded jump.")]
@@ -51,7 +57,7 @@ public class CharacterAbilities : MonoBehaviour
     public bool CanDoubleJump => _canDoubleJump;
 
     /// <summary>Last horizontal direction the character moved in. 1 = right, -1 = left.</summary>
-    [field: SerializeField, FuzzyBrain.ReadOnly] public float FacingDirection { get; private set; } = 1f;
+    [field: SerializeField, FuzzyBrain.ReadOnly] public float FacingDirection { get; set; } = 1f;
 
     private Rigidbody2D _rigidbody;
 

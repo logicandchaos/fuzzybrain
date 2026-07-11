@@ -13,13 +13,16 @@ MonoBehaviour:
   m_Name: Enemy Act List
   m_EditorClassIdentifier: 
   list:
-  - {fileID: 11400000, guid: 022da959f1001354fb1b6ad30965dea7, type: 2}
-  - {fileID: 11400000, guid: 0de3999f23d2f6b4f9aaf9837fba9db1, type: 2}
-  - {fileID: 11400000, guid: 4b5b11bbabee7164e8c3df3787636fa4, type: 2}
-  - {fileID: 11400000, guid: 642bd2392196e9044bcd459733ab4e99, type: 2}
-  - {fileID: 11400000, guid: 3439330604451cb4294432c1442fd265, type: 2}
-  - {fileID: 11400000, guid: ae2a595af0c3e3b4bb697cb1e5903d21, type: 2}
-  - {fileID: 11400000, guid: 20bf2cbbf5cc5484487ec5bc1378983c, type: 2}
-  - {fileID: 11400000, guid: d4d4134143b688749871985fd34807d7, type: 2}
-  - {fileID: 11400000, guid: 5fb80e3151b2c764590ecd9e768089a2, type: 2}
+  - {fileID: 11400000, guid: e18cac1cceea73f4c8e068ca1cbeac5f, type: 2}
+  - {fileID: 11400000, guid: 374f68b26c3508545b56863feb0126b0, type: 2}
+  - {fileID: 11400000, guid: c0f8b54c29e86bd40a6d2c9435e03ff3, type: 2}
+  - {fileID: 11400000, guid: 6822827baf02d8e4e90b21a90cee7012, type: 2}
+  - {fileID: 11400000, guid: 7fe15eb3b5941dd47860b7ba16b80559, type: 2}
+  - {fileID: 11400000, guid: 8991ac6e333d72b4191f65f6b040ef0a, type: 2}
+  - {fileID: 11400000, guid: 680d53e6d38466141968c1675c7431bb, type: 2}
+  - {fileID: 11400000, guid: 9439dce2b90d56048873d15c1160b80d, type: 2}
+  - {fileID: 11400000, guid: 168ed3b93c46f9a4eab17f18194d105e, type: 2}
+  - {fileID: 11400000, guid: 05e22bdb7355296408583741925c846b, type: 2}
+  - {fileID: 11400000, guid: bfdb0725117eca142a5e631d980561b6, type: 2}
+  - {fileID: 11400000, guid: a15d2ef6b6bf75346808818654d9c8f4, type: 2}
   - {fileID: 11400000, guid: a25301e3a2572a743a51cd24e60a16e5, type: 2}

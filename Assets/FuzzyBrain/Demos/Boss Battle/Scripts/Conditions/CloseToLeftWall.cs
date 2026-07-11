@@ -8,7 +8,7 @@ namespace BossBattleDemo
     {
         protected override bool Verify(EnemyAi component)
         {
-            bool result = component.transform.position.x < -20;
+            bool result = component.PositionX() < -25f;
             return inverted ? !result : result;
         }
     }
