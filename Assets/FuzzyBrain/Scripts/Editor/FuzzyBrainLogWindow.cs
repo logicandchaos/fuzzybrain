@@ -71,8 +71,8 @@ namespace FuzzyBrain.Editor
                 if (nowRecording != wasRecording)
                 {
                     FuzzyBrainLog.IsRecording = nowRecording;
-                    if (FuzzyBrainManager.Instance != null)
-                        FuzzyBrainManager.Instance.EnableActLogging = nowRecording;
+                    foreach (FuzzyBrainManager mgr in FindObjectsByType<FuzzyBrainManager>(FindObjectsSortMode.None))
+                        mgr.EnableActLogging = nowRecording;
                 }
 
                 GUILayout.Label("Filter:", EditorStyles.toolbarButton, GUILayout.Width(42f));

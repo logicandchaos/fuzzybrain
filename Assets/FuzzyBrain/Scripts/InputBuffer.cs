@@ -54,7 +54,7 @@ namespace FuzzyBrain
 
         /// <summary>
         /// Returns true if the action was pressed within the current tick interval window.
-        /// The window is FuzzyBrainManager.TickInterval plus one deltaTime as a boundary grace.
+        /// The window is the Actor's manager TickInterval plus one deltaTime as a boundary grace.
         /// Always returns false if the action has not been registered with Watch().
         /// </summary>
         public bool WasPressed(InputAction action)
@@ -62,14 +62,13 @@ namespace FuzzyBrain
             if (action == null) return false;
             if (!_lastPressedTime.TryGetValue(action, out float pressedAt)) return false;
 
-            float window = (FuzzyBrainManager.Instance != null ? FuzzyBrainManager.Instance.TickInterval : 0f)
-                           + Time.deltaTime;
+            float window = (GetComponent<Actor>()?.Manager?.TickInterval ?? 0f) + Time.deltaTime;
             return Time.time - pressedAt <= window;
         }
 
         /// <summary>
         /// Returns true if the action was released within the current tick interval window.
-        /// The window is FuzzyBrainManager.TickInterval plus one deltaTime as a boundary grace.
+        /// The window is the Actor's manager TickInterval plus one deltaTime as a boundary grace.
         /// Always returns false if the action has not been registered with Watch().
         /// </summary>
         public bool WasReleased(InputAction action)
@@ -77,8 +76,7 @@ namespace FuzzyBrain
             if (action == null) return false;
             if (!_lastReleasedTime.TryGetValue(action, out float releasedAt)) return false;
 
-            float window = (FuzzyBrainManager.Instance != null ? FuzzyBrainManager.Instance.TickInterval : 0f)
-                           + Time.deltaTime;
+            float window = (GetComponent<Actor>()?.Manager?.TickInterval ?? 0f) + Time.deltaTime;
             return Time.time - releasedAt <= window;
         }
 

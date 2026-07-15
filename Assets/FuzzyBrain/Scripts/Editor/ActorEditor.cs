@@ -8,7 +8,7 @@ namespace FuzzyBrain.Editor
 {
     /// <summary>
     /// Custom inspector for Actor.
-    /// Warns when no FuzzyBrainManager is in the scene.
+    /// Warns when no FuzzyBrainManager is assigned to the Actor.
     /// Adds an "Open FuzzyBrain Editor" button.
     /// Implements OnDrawGizmosSelected to call DrawGizmo on every condition
     /// in the active list that implements IGizmoDrawable.
@@ -26,21 +26,38 @@ namespace FuzzyBrain.Editor
             Actor actor = (Actor)target;
 
             // ── Manager check ─────────────────────────────────────────────────────
-            bool hasManager = FindFirstObjectByType<FuzzyBrainManager>() != null;
-            if (!hasManager)
+            SerializedProperty managerProp = serializedObject.FindProperty("_manager");
+            bool managerAssigned = managerProp != null && managerProp.objectReferenceValue != null;
+
+            if (!managerAssigned)
             {
                 EditorGUILayout.Space(6f);
                 EditorGUILayout.HelpBox(
-                    "No FuzzyBrainManager found in this scene.\n" +
-                    "One will be created automatically at runtime, but it is recommended to add one manually so you can configure bucket count and tick interval.",
-                    MessageType.Warning);
+                    "No FuzzyBrainManager assigned. This Actor will not evaluate.\n" +
+                    "Assign a ContinuousFuzzyBrainManager or StepFuzzyBrainManager in the Manager field above.",
+                    MessageType.Error);
 
-                if (GUILayout.Button("Add FuzzyBrainManager to Scene", GUILayout.Height(26f)))
+                FuzzyBrainManager existingManager = FindFirstObjectByType<FuzzyBrainManager>();
+
+                if (existingManager != null)
                 {
-                    var go = new GameObject("FuzzyBrainManager");
-                    go.AddComponent<FuzzyBrainManager>();
-                    Undo.RegisterCreatedObjectUndo(go, "Add FuzzyBrainManager");
-                    Selection.activeGameObject = go;
+                    if (GUILayout.Button($"Assign \"{existingManager.name}\" to this Actor", GUILayout.Height(26f)))
+                    {
+                        managerProp.objectReferenceValue = existingManager;
+                        serializedObject.ApplyModifiedProperties();
+                    }
+                }
+                else
+                {
+                    if (GUILayout.Button("Add Continuous Manager to Scene", GUILayout.Height(26f)))
+                    {
+                        var go = new GameObject("FuzzyBrainManager");
+                        var mgr = go.AddComponent<ContinuousFuzzyBrainManager>();
+                        Undo.RegisterCreatedObjectUndo(go, "Add Continuous FuzzyBrain Manager");
+                        managerProp.objectReferenceValue = mgr;
+                        serializedObject.ApplyModifiedProperties();
+                        Selection.activeGameObject = go;
+                    }
                 }
 
                 EditorGUILayout.Space(2f);

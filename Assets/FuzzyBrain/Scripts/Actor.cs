@@ -13,15 +13,19 @@ namespace FuzzyBrain
     /// isIdle is reset to false at the start of each evaluation tick.
     /// Acts are responsible for setting it — the built-in IdleAct does this in PerformAct.
     ///
-    /// Requires a FuzzyBrainManager in the scene to drive tick timing.
-    /// If none is present when this Actor enables, one is created automatically
-    /// with default settings (equivalent to per-frame evaluation).
+    /// Requires a FuzzyBrainManager assigned in the Manager field to drive tick timing.
+    /// Use ContinuousFuzzyBrainManager for Update-loop evaluation, or
+    /// StepFuzzyBrainManager for explicit step-driven evaluation.
     ///
     /// Optionally add an ActHistory component to enable combo sequencing.
     /// </summary>
     [AddComponentMenu("FuzzyBrain/Actor")]
     public class Actor : MonoBehaviour
     {
+        [Header("Manager")]
+        [SerializeField, Tooltip("The FuzzyBrainManager that drives this Actor's evaluation tick.")]
+        private FuzzyBrainManager _manager;
+
         [Header("Acts")]
         [SerializeField]
         private ScriptableActList acts;
@@ -50,6 +54,9 @@ namespace FuzzyBrain
         /// </summary>
         public Act CurrentAct => _currentAct;
 
+        /// <summary>The FuzzyBrainManager driving this Actor's evaluation tick.</summary>
+        public FuzzyBrainManager Manager => _manager;
+
         // ── Unity lifecycle ───────────────────────────────────────────────────────
 
         private void Awake()
@@ -62,28 +69,20 @@ namespace FuzzyBrain
 
         private void OnEnable()
         {
-            EnsureManager();
-            FuzzyBrainManager.Instance.Register(this);
+            if (_manager == null)
+            {
+                Debug.LogError("[FuzzyBrain] Actor has no FuzzyBrainManager assigned and will not evaluate. " +
+                               "Assign a ContinuousFuzzyBrainManager or StepFuzzyBrainManager in the Manager field.", this);
+                return;
+            }
+
+            _manager.Register(this);
             EnableActor();
-        }
-
-        /// <summary>
-        /// Ensures a FuzzyBrainManager exists in the scene.
-        /// If none is found, creates one automatically with default settings.
-        /// </summary>
-        private static void EnsureManager()
-        {
-            if (FuzzyBrainManager.Instance != null) return;
-
-            var go = new GameObject("FuzzyBrainManager");
-            go.AddComponent<FuzzyBrainManager>();
-            Debug.Log("[FuzzyBrain] No FuzzyBrainManager found in the scene — one was created automatically.", go);
         }
 
         private void OnDisable()
         {
-            if (FuzzyBrainManager.Instance != null)
-                FuzzyBrainManager.Instance.Unregister(this);
+            _manager?.Unregister(this);
         }
 
         // ── Evaluation loop ───────────────────────────────────────────────────────

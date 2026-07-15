@@ -4,26 +4,18 @@ using UnityEngine;
 namespace FuzzyBrain
 {
     /// <summary>
-    /// Singleton that drives all registered Actors with staggered tick buckets.
-    /// Required for Actor evaluation — if none is present in the scene when an Actor enables,
-    /// one is created automatically with default settings.
+    /// Abstract base class that drives registered Actors through a bucket-based evaluation schedule.
     ///
-    /// Stagger: actors are distributed across bucketCount buckets. Each bucket fires every
-    /// tickInterval seconds but offset in time, spreading evaluation cost evenly across frames.
-    /// Default settings (bucketCount=1, tickInterval=0) evaluate all actors every frame.
+    /// Actors register with their assigned FuzzyBrainManager on enable and are distributed across
+    /// stagger buckets to spread evaluation cost evenly.
+    ///
+    /// Subclasses define when evaluation happens:
+    ///   ContinuousFuzzyBrainManager — evaluates automatically on Unity's Update loop.
+    ///   StepFuzzyBrainManager       — evaluates only when Evaluate() is called explicitly.
     /// </summary>
-    [AddComponentMenu("FuzzyBrain/FuzzyBrain Manager")]
     [DefaultExecutionOrder(-1000)]
-    public class FuzzyBrainManager : MonoBehaviour
+    public abstract class FuzzyBrainManager : MonoBehaviour
     {
-        public static FuzzyBrainManager Instance { get; private set; }
-
-        [SerializeField, Min(1), Tooltip("Number of stagger buckets. Higher values spread evaluation cost more evenly across frames.")]
-        private int bucketCount = 4;
-
-        [SerializeField, Min(0f), Tooltip("Seconds between full condition evaluations per actor. Set to 0 to evaluate every frame.")]
-        private float tickInterval = 0.1f;
-
 #if UNITY_EDITOR
         [SerializeField, Tooltip("Enable act logging to the FuzzyBrain Log window (Editor only).")]
         private bool _enableActLogging = false;
@@ -42,63 +34,55 @@ namespace FuzzyBrain
         /// <summary>Fires when _enableActLogging changes. FuzzyBrainLog subscribes to keep IsRecording in sync.</summary>
         public static System.Action<bool> OnActLoggingChanged;
 
-
         /// <summary>Fires each time an actor ticks. FuzzyBrainLog subscribes to record entries.</summary>
         public static System.Action<string, string> OnActRecorded;
 #endif
 
-        // ── Public API ────────────────────────────────────────────────────────────
+        [SerializeField, Min(1), Tooltip("Number of stagger buckets. Higher values spread evaluation cost more evenly across frames.")]
+        private int bucketCount = 4;
 
-        /// <summary>Seconds between full condition evaluations per actor. Matches the Inspector field.</summary>
-        public float TickInterval => tickInterval;
+        /// <summary>
+        /// The interval between evaluations in seconds.
+        /// Returns 0 for managers that do not use time-based scheduling.
+        /// </summary>
+        public virtual float TickInterval => 0f;
 
         private List<Actor>[] _buckets;
         private float[] _bucketNextTick;
         private int _registrationCounter;
         private readonly Dictionary<Actor, int> _actorBucket = new Dictionary<Actor, int>();
 
-        // ── Singleton lifecycle ───────────────────────────────────────────────────
+        // ── Bucket count and next-tick arrays exposed to subclasses ──────────────
 
-        private void Awake()
+        /// <summary>The number of stagger buckets currently configured.</summary>
+        protected int BucketCount => bucketCount;
+
+        /// <summary>Per-bucket scheduled next-tick times. Subclasses use this to implement time-based scheduling.</summary>
+        protected float[] BucketNextTick => _bucketNextTick;
+
+        // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+        protected virtual void Awake()
         {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(gameObject);
-                return;
-            }
-
-            Instance = this;
             InitBuckets();
 #if UNITY_EDITOR
             OnActLoggingChanged?.Invoke(_enableActLogging);
 #endif
         }
 
-        private void OnDestroy()
-        {
-            if (Instance == this)
-                Instance = null;
-        }
-
         // ── Bucket initialisation ─────────────────────────────────────────────────
 
-        private void InitBuckets()
+        /// <summary>Allocates and clears the bucket arrays. Called automatically in Awake.</summary>
+        protected void InitBuckets()
         {
-            bucketCount  = Mathf.Max(1, bucketCount);
-            tickInterval = Mathf.Max(0f, tickInterval);
+            bucketCount = Mathf.Max(1, bucketCount);
 
             _buckets        = new List<Actor>[bucketCount];
             _bucketNextTick = new float[bucketCount];
             _actorBucket.Clear();
 
-            // Start each bucket one full interval ahead so no bucket fires immediately
-            // on the first frame, and the stagger offset is preserved from the start.
-            float offset = tickInterval / bucketCount;
             for (int i = 0; i < bucketCount; i++)
-            {
-                _buckets[i]        = new List<Actor>();
-                _bucketNextTick[i] = Time.time + tickInterval + i * offset;
-            }
+                _buckets[i] = new List<Actor>();
         }
 
         // ── Registration ──────────────────────────────────────────────────────────
@@ -115,7 +99,7 @@ namespace FuzzyBrain
         }
 
         /// <summary>
-        /// Removes an Actor from its bucket in O(1) using a reverse-lookup dictionary.
+        /// Removes an Actor from its bucket.
         /// Called automatically by Actor.OnDisable.
         /// </summary>
         public void Unregister(Actor actor)
@@ -125,19 +109,10 @@ namespace FuzzyBrain
             _actorBucket.Remove(actor);
         }
 
-        // ── Tick loop ─────────────────────────────────────────────────────────────
+        // ── Tick ──────────────────────────────────────────────────────────────────
 
-        private void Update()
-        {
-            for (int b = 0; b < bucketCount; b++)
-            {
-                if (Time.time < _bucketNextTick[b]) continue;
-                _bucketNextTick[b] = Time.time + tickInterval;
-                TickBucket(b);
-            }
-        }
-
-        private void TickBucket(int b)
+        /// <summary>Evaluates all Actors in a single bucket.</summary>
+        protected void TickBucket(int b)
         {
             List<Actor> bucket = _buckets[b];
             for (int i = bucket.Count - 1; i >= 0; i--)
@@ -153,6 +128,13 @@ namespace FuzzyBrain
                 OnActRecorded?.Invoke(actor.name, actor.LastFiredAct?.name ?? "(none)");
 #endif
             }
+        }
+
+        /// <summary>Evaluates all Actors across all buckets immediately.</summary>
+        protected void TickAll()
+        {
+            for (int b = 0; b < _buckets.Length; b++)
+                TickBucket(b);
         }
     }
 }
