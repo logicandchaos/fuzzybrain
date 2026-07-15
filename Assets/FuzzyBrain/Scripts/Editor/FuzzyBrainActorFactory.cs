@@ -18,10 +18,18 @@ namespace FuzzyBrain.Editor
         [MenuItem("GameObject/FuzzyBrain/Actor", false, MenuPriority)]
         private static void CreateActor(MenuCommand command)
         {
-            EnsureFuzzyBrainManager();
+            FuzzyBrainManager mgr = EnsureFuzzyBrainManager();
 
-            var go = new GameObject("Actor");
-            go.AddComponent<Actor>();
+            var go    = new GameObject("Actor");
+            var actor = go.AddComponent<Actor>();
+
+            // Wire the manager to the actor's serialized Manager field.
+            if (mgr != null)
+            {
+                var so = new SerializedObject(actor);
+                so.FindProperty("_manager").objectReferenceValue = mgr;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
 
             // Parent to the selected object in the Hierarchy, if any.
             GameObject parent = command.context as GameObject;
@@ -33,17 +41,19 @@ namespace FuzzyBrain.Editor
         }
 
         /// <summary>
-        /// Ensures a FuzzyBrainManager is present in the scene.
-        /// If one is created, it is registered with Undo and a console message is logged.
+        /// Ensures a ContinuousFuzzyBrainManager is present in the scene.
+        /// Returns the existing manager if one is found, otherwise creates one.
         /// </summary>
-        private static void EnsureFuzzyBrainManager()
+        private static FuzzyBrainManager EnsureFuzzyBrainManager()
         {
-            if (Object.FindFirstObjectByType<FuzzyBrainManager>() != null) return;
+            var existing = Object.FindFirstObjectByType<FuzzyBrainManager>();
+            if (existing != null) return existing;
 
             var managerGo = new GameObject("FuzzyBrainManager");
-            managerGo.AddComponent<FuzzyBrainManager>();
-            Undo.RegisterCreatedObjectUndo(managerGo, "Create FuzzyBrainManager");
-            Debug.Log("[FuzzyBrain] FuzzyBrainManager was not found in the scene — one has been created.", managerGo);
+            var mgr       = managerGo.AddComponent<ContinuousFuzzyBrainManager>();
+            Undo.RegisterCreatedObjectUndo(managerGo, "Create ContinuousFuzzyBrainManager");
+            Debug.Log("[FuzzyBrain] No FuzzyBrainManager found in the scene — a ContinuousFuzzyBrainManager has been created.", managerGo);
+            return mgr;
         }
     }
 }
